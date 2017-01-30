@@ -28,9 +28,6 @@ expr: cspEvent cspPrefix cspProcess;
 
 const eof = 0
 
-var hack = [4]int{cspEvent, cspPrefix, cspProcess, eof}
-var hackCount = 0
-
 type cspLex struct {
 	s scanner.Scanner
 }
