@@ -37,13 +37,13 @@ type cspLex struct {
 
 func (x *cspLex) Lex(lvalue *cspSymType) int {
 	var tokenType int
-	lvalue.ident, tokenType = x.Next()
+	lvalue.ident, tokenType = x.next()
 	log.Printf("parsing: %s, %v", lvalue.ident, tokenType)
 
 	return tokenType
 }
 
-func (x *cspLex) Next() (string, int) {
+func (x *cspLex) next() (string, int) {
 	var (
 		outVal string
 		outTok int
