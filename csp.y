@@ -4,12 +4,15 @@ package main
 
 import (
 	"log"
+	"text/scanner"
+	"unicode"
+	"unicode/utf8"
 )
 
 %}
 
 %union {
-	val int
+	ident string
 }
 
 %token cspEvent cspProcess cspChoice cspParallel
@@ -17,17 +20,71 @@ import (
 
 %%
 
-start: ;
+start: expr;
+
+expr: cspEvent cspPrefix cspProcess;
 
 %%
 
 const eof = 0
 
-type cspLex string
+var hack = [4]int{cspEvent, cspPrefix, cspProcess, eof}
+var hackCount = 0
 
-func (x *cspLex) Lex(yyl *cspSymType) int {
-	log.Printf("parsing: %v", *x)
-	return yyl.val
+type cspLex struct {
+	s scanner.Scanner
+}
+
+func (x *cspLex) Lex(lvalue *cspSymType) int {
+	var tokenType int
+	lvalue.ident, tokenType = x.Next()
+	log.Printf("parsing: %s, %v", lvalue.ident, tokenType)
+
+	return tokenType
+}
+
+func (x *cspLex) Next() (string, int) {
+	var (
+		outVal string
+		outTok int
+	)
+
+	if tok := x.s.Scan(); tok == scanner.Ident {
+		outVal = x.s.TokenText()
+		if r, _ := utf8.DecodeRuneInString(outVal); unicode.IsUpper(r) {
+			outTok = cspProcess
+		} else {
+			outTok = cspEvent
+		}
+	} else {
+		switch {
+		case tok == '-':
+			x.s.Scan()
+			if x.s.TokenText() != ">" {
+				log.Printf("Unrecognised character: -")
+			}
+			outVal, outTok = "->", cspPrefix
+		case tok == '[':
+			x.s.Scan()
+			if x.s.TokenText() != ">" {
+				log.Printf("Unrecognised character: [")
+			}
+			outVal, outTok = "[]", cspChoice
+		case tok == '|':
+			x.s.Scan()
+			if x.s.TokenText() != ">" {
+				log.Printf("Unrecognised character: |")
+			}
+			outVal, outTok = "||", cspParallel
+		case tok == scanner.EOF:
+			outVal, outTok = "EOF", eof
+		default:
+			log.Printf("Unrecognised character: %q", tok)
+			outVal = string(tok)
+		}
+	}
+
+	return outVal, outTok
 }
 
 func (x *cspLex) Error(s string) {
