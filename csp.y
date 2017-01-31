@@ -63,13 +63,13 @@ func (x *cspLex) next() (string, int) {
 			outVal, outTok = "->", cspPrefix
 		case tok == '[':
 			x.s.Scan()
-			if x.s.TokenText() != ">" {
+			if x.s.TokenText() != "]" {
 				log.Printf("Unrecognised character: [")
 			}
 			outVal, outTok = "[]", cspChoice
 		case tok == '|':
 			x.s.Scan()
-			if x.s.TokenText() != ">" {
+			if x.s.TokenText() != "|" {
 				log.Printf("Unrecognised character: |")
 			}
 			outVal, outTok = "||", cspParallel
