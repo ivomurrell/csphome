@@ -9,10 +9,20 @@ import (
 	"unicode/utf8"
 )
 
+type cspTree struct {
+	tok int
+	ident string
+	left *cspTree
+	right *cspTree
+}
+
+var root *cspTree
+
 %}
 
 %union {
-	ident string
+	node *cspTree
+	tok int
 }
 
 %token cspEvent cspProcess cspChoice cspGenChoice cspParallel
@@ -20,9 +30,38 @@ import (
 
 %%
 
-start: expr;
+Start:
+	Expr
+		{
+			root = $1.node
+			$$ = $1
+		}
 
-expr: cspEvent cspPrefix cspProcess;
+Expr:
+	Process {$$ = $1}
+	| Process Choice Expr
+		{
+			$$.node = &cspTree{tok: $2.tok, left: $1.node, right: $3.node}
+		}
+
+Choice:
+	cspChoice {$$.tok = cspChoice}
+	| cspGenChoice {$$.tok = cspGenChoice}
+	| cspParallel {$$.tok = cspParallel}
+
+Process:
+	cspEvent
+		{
+			$$.node = &cspTree{tok: cspEvent}
+		}
+	| cspProcess
+		{
+			$$.node = &cspTree{tok: cspProcess}
+		}
+	| cspEvent cspPrefix Process
+		{
+			$$.node = &cspTree{tok: cspEvent, right: $3.node}
+		}
 
 %%
 
