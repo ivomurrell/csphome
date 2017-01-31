@@ -15,7 +15,7 @@ import (
 	ident string
 }
 
-%token cspEvent cspProcess cspChoice cspParallel
+%token cspEvent cspProcess cspChoice cspGenChoice cspParallel
 %left cspPrefix
 
 %%
@@ -67,11 +67,11 @@ func (x *cspLex) next() (string, int) {
 				log.Printf("Unrecognised character: [")
 			} else {
 				x.s.Next()
-				outVal, outTok = "[]", cspChoice
+				outVal, outTok = "[]", cspGenChoice
 			}
 		case tok == '|':
 			if x.s.Peek() != '|' {
-				log.Printf("Unrecognised character: |")
+				outVal, outTok = "|", cspChoice
 			} else {
 				x.s.Next()
 				outVal, outTok = "||", cspParallel
