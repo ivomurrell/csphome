@@ -56,23 +56,26 @@ func (x *cspLex) next() (string, int) {
 	} else {
 		switch {
 		case tok == '-':
-			x.s.Scan()
-			if x.s.TokenText() != ">" {
+			if x.s.Peek() != '>' {
 				log.Printf("Unrecognised character: -")
+			} else {
+				x.s.Next()
+				outVal, outTok = "->", cspPrefix
 			}
-			outVal, outTok = "->", cspPrefix
 		case tok == '[':
-			x.s.Scan()
-			if x.s.TokenText() != "]" {
+			if x.s.Peek() != ']' {
 				log.Printf("Unrecognised character: [")
+			} else {
+				x.s.Next()
+				outVal, outTok = "[]", cspChoice
 			}
-			outVal, outTok = "[]", cspChoice
 		case tok == '|':
-			x.s.Scan()
-			if x.s.TokenText() != "|" {
+			if x.s.Peek() != '|' {
 				log.Printf("Unrecognised character: |")
+			} else {
+				x.s.Next()
+				outVal, outTok = "||", cspParallel
 			}
-			outVal, outTok = "||", cspParallel
 		case tok == scanner.EOF:
 			outVal, outTok = "EOF", eof
 		default:
