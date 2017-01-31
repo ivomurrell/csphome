@@ -50,17 +50,12 @@ Choice:
 	| cspParallel {$$.tok = cspParallel}
 
 Process:
-	cspEvent
-		{
-			$$.node = &cspTree{tok: cspEvent}
-		}
-	| cspProcess
-		{
-			$$.node = &cspTree{tok: cspProcess}
-		}
+	cspEvent {$$ = $1}
+	| cspProcess {$$ = $1}
 	| cspEvent cspPrefix Process
 		{
-			$$.node = &cspTree{tok: cspEvent, right: $3.node}
+			$1.node.right = $3.node
+			$$ = $1
 		}
 
 %%
@@ -72,58 +67,47 @@ type cspLex struct {
 }
 
 func (x *cspLex) Lex(lvalue *cspSymType) int {
-	var tokenType int
-	lvalue.ident, tokenType = x.next()
-	log.Printf("parsing: %s, %v", lvalue.ident, tokenType)
+	var token int
 
-	return tokenType
-}
-
-func (x *cspLex) next() (string, int) {
-	var (
-		outVal string
-		outTok int
-	)
-
-	if tok := x.s.Scan(); tok == scanner.Ident {
-		outVal = x.s.TokenText()
-		if r, _ := utf8.DecodeRuneInString(outVal); unicode.IsUpper(r) {
-			outTok = cspProcess
+	if t := x.s.Scan(); t == scanner.Ident {
+		ident := x.s.TokenText()
+		if r, _ := utf8.DecodeRuneInString(ident); unicode.IsUpper(r) {
+			token = cspProcess
 		} else {
-			outTok = cspEvent
+			token = cspEvent
 		}
+		lvalue.node = &cspTree{tok: token, ident: ident}
 	} else {
 		switch {
-		case tok == '-':
+		case t == '-':
 			if x.s.Peek() != '>' {
 				log.Printf("Unrecognised character: -")
 			} else {
 				x.s.Next()
-				outVal, outTok = "->", cspPrefix
+				token = cspPrefix
 			}
-		case tok == '[':
+		case t == '[':
 			if x.s.Peek() != ']' {
 				log.Printf("Unrecognised character: [")
 			} else {
 				x.s.Next()
-				outVal, outTok = "[]", cspGenChoice
+				token = cspGenChoice
 			}
-		case tok == '|':
+		case t == '|':
 			if x.s.Peek() != '|' {
-				outVal, outTok = "|", cspChoice
+				token = cspChoice
 			} else {
 				x.s.Next()
-				outVal, outTok = "||", cspParallel
+				token = cspParallel
 			}
-		case tok == scanner.EOF:
-			outVal, outTok = "EOF", eof
+		case t == scanner.EOF:
+			token = eof
 		default:
-			log.Printf("Unrecognised character: %q", tok)
-			outVal = string(tok)
+			log.Printf("Unrecognised character: %q", t)
 		}
 	}
 
-	return outVal, outTok
+	return token
 }
 
 func (x *cspLex) Error(s string) {
