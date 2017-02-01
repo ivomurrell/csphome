@@ -40,7 +40,7 @@ var alphaBuf cspAlphabet
 %left <tok> cspParallel
 %left <tok> cspGenChoice
 %left <tok> cspChoice
-%left cspPrefix
+%right cspPrefix
 
 %%
 
