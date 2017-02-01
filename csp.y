@@ -29,13 +29,11 @@ var alphaBuf cspAlphabet
 %union {
 	node *cspTree
 	tok int
-	ident string
 }
 
 %type <node> Expr Process
 
 %token <node> cspEvent cspProcess
-%token <ident> cspIdentifier
 %token cspLet cspAlphabetTok
 %left <tok> cspParallel
 %left <tok> cspGenChoice
@@ -64,9 +62,9 @@ Process:
 		}
 
 Decl:
-	cspLet cspAlphabetTok cspIdentifier '=' EventSet
+	cspLet cspAlphabetTok cspProcess '=' EventSet
 		{
-			alphabets[$3] = alphaBuf
+			alphabets[$3.ident] = alphaBuf
 			alphaBuf = nil
 		}
 
@@ -86,12 +84,21 @@ type cspLex struct {
 func (x *cspLex) Lex(lvalue *cspSymType) int {
 	var token int
 
-	if t := x.s.Scan(); t == scanner.Ident {
+	if t := x.peekNextSymbol(); t == 'α' {
+		x.s.Next()
+		token = cspAlphabetTok
+	} else if t = x.s.Scan(); t == scanner.Ident {
 		ident := x.s.TokenText()
-		if r, _ := utf8.DecodeRuneInString(ident); unicode.IsUpper(r) {
-			token = cspProcess
-		} else {
-			token = cspEvent
+		switch {
+		case ident == "let":
+			token = cspLet
+		default:
+			r, _ := utf8.DecodeRuneInString(ident)
+			if unicode.IsUpper(r) {
+				token = cspProcess
+			} else {
+				token = cspEvent
+			}
 		}
 		lvalue.node = &cspTree{tok: token, ident: ident}
 	} else {
@@ -121,12 +128,27 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 			lvalue.tok = token
 		case t == scanner.EOF:
 			token = eof
+		case t == '=':
+			token = int(t)
+		case t == ',':
+			token = int(t)
 		default:
 			log.Printf("Unrecognised character: %q", t)
 		}
 	}
 
 	return token
+}
+
+func (x *cspLex) peekNextSymbol() rune {
+	for {
+		s := x.s.Peek()
+		if unicode.IsSpace(s) {
+			x.s.Next()
+		} else {
+			return s
+		}
+	}
 }
 
 func (x *cspLex) Error(s string) {
