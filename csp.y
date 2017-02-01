@@ -16,18 +16,27 @@ type cspTree struct {
 	right *cspTree
 }
 
+type cspAlphabet []string
+type cspAlphabetMap map[string]cspAlphabet
+
 var root *cspTree
+
+var alphabets cspAlphabetMap
+var alphaBuf cspAlphabet
 
 %}
 
 %union {
 	node *cspTree
 	tok int
+	ident string
 }
 
-%type <node> Start Expr Process
+%type <node> Expr Process
 
 %token <node> cspEvent cspProcess
+%token <ident> cspIdentifier
+%token cspLet cspAlphabetTok
 %left <tok> cspParallel
 %left <tok> cspGenChoice
 %left <tok> cspChoice
@@ -36,11 +45,8 @@ var root *cspTree
 %%
 
 Start:
-	Expr
-		{
-			root = $1
-			$$ = $1
-		}
+	Expr {root = $1}
+	| Decl
 
 Expr:
 	Process {$$ = $1}
@@ -56,6 +62,18 @@ Process:
 			$1.right = $3
 			$$ = $1
 		}
+
+Decl:
+	cspLet cspAlphabetTok cspIdentifier '=' EventSet
+		{
+			alphabets[$3] = alphaBuf
+			alphaBuf = nil
+		}
+
+EventSet:
+	cspEvent {alphaBuf = append(alphaBuf, $1.ident)}
+	| EventSet cspEvent {alphaBuf = append(alphaBuf, $2.ident)}
+	| EventSet ',' cspEvent {alphaBuf = append(alphaBuf, $3.ident)}
 
 %%
 
