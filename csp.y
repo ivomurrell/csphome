@@ -25,7 +25,11 @@ var root *cspTree
 	tok int
 }
 
-%token cspEvent cspProcess cspChoice cspGenChoice cspParallel
+%type <node> Start Expr Process
+%type <tok> Choice
+
+%token <node> cspEvent cspProcess
+%token <tok> cspChoice cspGenChoice cspParallel
 %left cspPrefix
 
 %%
@@ -33,28 +37,25 @@ var root *cspTree
 Start:
 	Expr
 		{
-			root = $1.node
+			root = $1
 			$$ = $1
 		}
 
 Expr:
 	Process {$$ = $1}
-	| Process Choice Expr
-		{
-			$$.node = &cspTree{tok: $2.tok, left: $1.node, right: $3.node}
-		}
+	| Process Choice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
 
 Choice:
-	cspChoice {$$.tok = cspChoice}
-	| cspGenChoice {$$.tok = cspGenChoice}
-	| cspParallel {$$.tok = cspParallel}
+	cspChoice {$$ = cspChoice}
+	| cspGenChoice {$$ = cspGenChoice}
+	| cspParallel {$$ = cspParallel}
 
 Process:
 	cspEvent {$$ = $1}
 	| cspProcess {$$ = $1}
 	| cspEvent cspPrefix Process
 		{
-			$1.node.right = $3.node
+			$1.right = $3
 			$$ = $1
 		}
 
