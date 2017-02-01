@@ -21,6 +21,8 @@ type cspAlphabetMap map[string]cspAlphabet
 
 var root *cspTree
 
+var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
+
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
 var alphaBuf cspAlphabet
 
@@ -33,7 +35,7 @@ var alphaBuf cspAlphabet
 
 %type <node> Expr Process
 
-%token <node> cspEvent cspProcess
+%token <node> cspEvent cspProcessTok
 %token cspLet cspAlphabetTok
 %left <tok> cspParallel
 %left <tok> cspGenChoice
@@ -54,7 +56,7 @@ Expr:
 
 Process:
 	cspEvent {$$ = $1}
-	| cspProcess {$$ = $1}
+	| cspProcessTok {$$ = $1}
 	| cspEvent cspPrefix Process
 		{
 			$1.right = $3
@@ -62,11 +64,12 @@ Process:
 		}
 
 Decl:
-	cspLet cspAlphabetTok cspProcess '=' EventSet
+	cspLet cspAlphabetTok cspProcessTok '=' EventSet
 		{
 			alphabets[$3.ident] = alphaBuf
 			alphaBuf = nil
 		}
+	| cspLet cspProcessTok '=' Expr {processDefinitions[$2.ident] = $4}
 
 EventSet:
 	cspEvent {alphaBuf = append(alphaBuf, $1.ident)}
@@ -95,7 +98,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 		default:
 			r, _ := utf8.DecodeRuneInString(ident)
 			if unicode.IsUpper(r) {
-				token = cspProcess
+				token = cspProcessTok
 			} else {
 				token = cspEvent
 			}
