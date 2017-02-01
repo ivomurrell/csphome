@@ -26,10 +26,11 @@ var root *cspTree
 }
 
 %type <node> Start Expr Process
-%type <tok> Choice
 
 %token <node> cspEvent cspProcess
-%token <tok> cspChoice cspGenChoice cspParallel
+%left <tok> cspParallel
+%left <tok> cspGenChoice
+%left <tok> cspChoice
 %left cspPrefix
 
 %%
@@ -43,12 +44,9 @@ Start:
 
 Expr:
 	Process {$$ = $1}
-	| Process Choice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
-
-Choice:
-	cspChoice {$$ = cspChoice}
-	| cspGenChoice {$$ = cspGenChoice}
-	| cspParallel {$$ = cspParallel}
+	| Expr cspChoice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
+	| Expr cspGenChoice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
+	| Expr cspParallel Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
 
 Process:
 	cspEvent {$$ = $1}
@@ -93,6 +91,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 			} else {
 				x.s.Next()
 				token = cspGenChoice
+				lvalue.tok = token
 			}
 		case t == '|':
 			if x.s.Peek() != '|' {
@@ -101,6 +100,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				x.s.Next()
 				token = cspParallel
 			}
+			lvalue.tok = token
 		case t == scanner.EOF:
 			token = eof
 		default:
