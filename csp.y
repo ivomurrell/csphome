@@ -56,7 +56,7 @@ Expr:
 
 Process:
 	cspEvent {$$ = $1}
-	| cspProcessTok {$$ = $1}
+	| cspProcessTok {$$ = processDefinitions[$1.ident]}
 	| cspEvent cspPrefix Process
 		{
 			$1.right = $3
