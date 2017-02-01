@@ -21,7 +21,7 @@ type cspAlphabetMap map[string]cspAlphabet
 
 var root *cspTree
 
-var alphabets cspAlphabetMap
+var alphabets cspAlphabetMap = make(cspAlphabetMap)
 var alphaBuf cspAlphabet
 
 %}
