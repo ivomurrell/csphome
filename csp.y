@@ -102,15 +102,15 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 		}
 		lvalue.node = &cspTree{tok: token, ident: ident}
 	} else {
-		switch {
-		case t == '-':
+		switch t {
+		case '-':
 			if x.s.Peek() != '>' {
 				log.Printf("Unrecognised character: -")
 			} else {
 				x.s.Next()
 				token = cspPrefix
 			}
-		case t == '[':
+		case '[':
 			if x.s.Peek() != ']' {
 				log.Printf("Unrecognised character: [")
 			} else {
@@ -118,7 +118,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				token = cspGenChoice
 				lvalue.tok = token
 			}
-		case t == '|':
+		case '|':
 			if x.s.Peek() != '|' {
 				token = cspChoice
 			} else {
@@ -126,11 +126,9 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				token = cspParallel
 			}
 			lvalue.tok = token
-		case t == scanner.EOF:
+		case scanner.EOF:
 			token = eof
-		case t == '=':
-			token = int(t)
-		case t == ',':
+		case '=', ',':
 			token = int(t)
 		default:
 			log.Printf("Unrecognised character: %q", t)
