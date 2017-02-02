@@ -16,15 +16,16 @@ type cspTree struct {
 	right *cspTree
 }
 
-type cspAlphabet []string
-type cspAlphabetMap map[string]cspAlphabet
+type cspEventList []string
+type cspAlphabetMap map[string]cspEventList
 
 var root *cspTree
+var env cspEventList
 
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
-
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
-var alphaBuf cspAlphabet
+
+var eventBuf cspEventList
 
 %}
 
@@ -36,7 +37,7 @@ var alphaBuf cspAlphabet
 %type <node> Expr Process
 
 %token <node> cspEvent cspProcessTok
-%token cspLet cspAlphabetTok
+%token cspLet cspAlphabetTok cspEnvDef
 %left <tok> cspParallel
 %left <tok> cspGenChoice
 %left <tok> cspChoice
@@ -66,15 +67,20 @@ Process:
 Decl:
 	cspLet cspAlphabetTok cspProcessTok '=' EventSet
 		{
-			alphabets[$3.ident] = alphaBuf
-			alphaBuf = nil
+			alphabets[$3.ident] = eventBuf
+			eventBuf = nil
+		}
+	| cspEnvDef EventSet
+		{
+			env = eventBuf
+			eventBuf = nil
 		}
 	| cspLet cspProcessTok '=' Expr {processDefinitions[$2.ident] = $4}
 
 EventSet:
-	cspEvent {alphaBuf = append(alphaBuf, $1.ident)}
-	| EventSet cspEvent {alphaBuf = append(alphaBuf, $2.ident)}
-	| EventSet ',' cspEvent {alphaBuf = append(alphaBuf, $3.ident)}
+	cspEvent {eventBuf = append(eventBuf, $1.ident)}
+	| EventSet cspEvent {eventBuf = append(eventBuf, $2.ident)}
+	| EventSet ',' cspEvent {eventBuf = append(eventBuf, $3.ident)}
 
 %%
 
@@ -92,9 +98,11 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 		token = cspAlphabetTok
 	} else if t = x.s.Scan(); t == scanner.Ident {
 		ident := x.s.TokenText()
-		switch {
-		case ident == "let":
+		switch ident {
+		case "let":
 			token = cspLet
+		case "envdef":
+			token = cspEnvDef
 		default:
 			r, _ := utf8.DecodeRuneInString(ident)
 			if unicode.IsUpper(r) {
