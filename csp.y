@@ -31,7 +31,6 @@ var eventBuf cspEventList
 
 %union {
 	node *cspTree
-	tok int
 	ident string
 }
 
@@ -39,9 +38,9 @@ var eventBuf cspEventList
 
 %token <ident> cspEvent cspProcessTok
 %token cspLet cspAlphabetTok cspEnvDef
-%left <tok> cspParallel
-%left <tok> cspGenChoice
-%left <tok> cspChoice
+%left cspParallel
+%left cspGenChoice
+%left cspChoice
 %right cspPrefix
 
 %%
@@ -52,9 +51,18 @@ Start:
 
 Expr:
 	Process {$$ = $1}
-	| Expr cspChoice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
-	| Expr cspGenChoice Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
-	| Expr cspParallel Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
+	| Expr cspChoice Expr
+		{
+			$$ = &cspTree{tok: cspChoice, left: $1, right: $3}
+		}
+	| Expr cspGenChoice Expr
+		{
+			$$ = &cspTree{tok: cspGenChoice, left: $1, right: $3}
+		}
+	| Expr cspParallel Expr
+		{
+			$$ = &cspTree{tok: cspParallel, left: $1, right: $3}
+		}
 
 Process:
 	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
@@ -127,7 +135,6 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 			} else {
 				x.s.Next()
 				token = cspGenChoice
-				lvalue.tok = token
 			}
 		case '|':
 			if x.s.Peek() != '|' {
@@ -136,7 +143,6 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				x.s.Next()
 				token = cspParallel
 			}
-			lvalue.tok = token
 		case scanner.EOF:
 			token = eof
 		case '=', ',':
