@@ -32,11 +32,12 @@ var eventBuf cspEventList
 %union {
 	node *cspTree
 	tok int
+	ident string
 }
 
 %type <node> Expr Process
 
-%token <node> cspEvent cspProcessTok
+%token <ident> cspEvent cspProcessTok
 %token cspLet cspAlphabetTok cspEnvDef
 %left <tok> cspParallel
 %left <tok> cspGenChoice
@@ -56,18 +57,17 @@ Expr:
 	| Expr cspParallel Expr {$$ = &cspTree{tok: $2, left: $1, right: $3}}
 
 Process:
-	cspEvent {$$ = $1}
-	| cspProcessTok {$$ = $1}
+	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
+	| cspProcessTok {$$ = &cspTree{tok: cspProcessTok, ident: $1}}
 	| cspEvent cspPrefix Process
 		{
-			$1.right = $3
-			$$ = $1
+			$$ = &cspTree{tok: cspEvent, ident: $1, right: $3}
 		}
 
 Decl:
 	cspLet cspAlphabetTok cspProcessTok '=' EventSet
 		{
-			alphabets[$3.ident] = eventBuf
+			alphabets[$3] = eventBuf
 			eventBuf = nil
 		}
 	| cspEnvDef EventSet
@@ -75,12 +75,12 @@ Decl:
 			env = eventBuf
 			eventBuf = nil
 		}
-	| cspLet cspProcessTok '=' Expr {processDefinitions[$2.ident] = $4}
+	| cspLet cspProcessTok '=' Expr {processDefinitions[$2] = $4}
 
 EventSet:
-	cspEvent {eventBuf = append(eventBuf, $1.ident)}
-	| EventSet cspEvent {eventBuf = append(eventBuf, $2.ident)}
-	| EventSet ',' cspEvent {eventBuf = append(eventBuf, $3.ident)}
+	cspEvent {eventBuf = append(eventBuf, $1)}
+	| EventSet cspEvent {eventBuf = append(eventBuf, $2)}
+	| EventSet ',' cspEvent {eventBuf = append(eventBuf, $3)}
 
 %%
 
@@ -111,7 +111,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				token = cspEvent
 			}
 		}
-		lvalue.node = &cspTree{tok: token, ident: ident}
+		lvalue.ident = ident
 	} else {
 		switch t {
 		case '-':
