@@ -38,6 +38,7 @@ func main() {
 		lineScan.Init(strings.NewReader(in.Text()))
 		cspParse(&cspLex{s: lineScan})
 	}
+	file.Close()
 
 	if root != nil {
 		print_tree(root)
