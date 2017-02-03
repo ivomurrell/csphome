@@ -26,6 +26,7 @@ func main() {
 	}
 	in := bufio.NewScanner(file)
 
+	log.SetOutput(os.Stdout)
 	var lineScan scanner.Scanner
 	for in.Scan() {
 		lineScan.Init(strings.NewReader(in.Text()))
