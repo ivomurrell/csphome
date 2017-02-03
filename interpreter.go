@@ -15,7 +15,10 @@ func main() {
 	s.Init(strings.NewReader("aaaa->Q|b->c->P"))
 	cspParse(&cspLex{s})
 
-	print_tree(root)
+	if root != nil {
+		print_tree(root)
+		interpret_tree(root)
+	}
 }
 
 func print_tree(node *cspTree) {
