@@ -39,7 +39,7 @@ var eventBuf cspEventList
 %token <ident> cspEvent cspProcessTok
 %token cspLet cspAlphabetTok cspEnvDef
 %left cspParallel
-%left cspGenChoice
+%left cspGenChoice cspOr
 %left cspChoice
 %right cspPrefix
 
@@ -59,6 +59,10 @@ Expr:
 	| Expr cspGenChoice Expr
 		{
 			$$ = &cspTree{tok: cspGenChoice, left: $1, right: $3}
+		}
+	| Expr cspOr Expr
+		{
+			$$ = &cspTree{tok: cspOr, left: $1, right: $3}
 		}
 	| Expr cspParallel Expr
 		{
@@ -131,11 +135,20 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 				token = cspPrefix
 			}
 		case '[':
-			if x.s.Peek() != ']' {
-				log.Printf("Unrecognised character: [")
-			} else {
+			switch x.s.Peek() {
+			case '|':
+				x.s.Next()
+				if x.s.Peek() != ']' {
+					log.Printf("Unrecognised sequence: \"[|\"")
+				} else {
+					x.s.Next()
+					token = cspOr
+				}
+			case ']':
 				x.s.Next()
 				token = cspGenChoice
+			default:
+				log.Printf("Unrecognised character: [")
 			}
 		case '|':
 			if x.s.Peek() != '|' {

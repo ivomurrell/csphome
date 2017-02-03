@@ -55,8 +55,8 @@ func print_tree(node *cspTree) {
 
 func interpret_tree(node *cspTree) {
 	switch node.tok {
-	case cspGenChoice:
-		if node.left.ident == node.right.ident {
+	case cspGenChoice, cspOr:
+		if node.tok == cspOr || node.left.ident == node.right.ident {
 			if rand.Intn(2) == 1 {
 				interpret_tree(node.right)
 			} else {
