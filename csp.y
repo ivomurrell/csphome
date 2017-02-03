@@ -142,11 +142,11 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 					log.Printf("Unrecognised sequence: \"[|\"")
 				} else {
 					x.s.Next()
-					token = cspOr
+					token = cspGenChoice
 				}
 			case ']':
 				x.s.Next()
-				token = cspGenChoice
+				token = cspOr
 			default:
 				log.Printf("Unrecognised character: [")
 			}
