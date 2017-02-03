@@ -4,14 +4,20 @@ import (
 	"bufio"
 	"flag"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 	"text/scanner"
+	"time"
 )
 
 //go:generate go tool yacc -p "csp" -o parser.go csp.y
 
 var envCount int = 0
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 func main() {
 	path := flag.String("f", "", "File path to CSP definitions.")
@@ -51,8 +57,11 @@ func interpret_tree(node *cspTree) {
 	switch node.tok {
 	case cspGenChoice:
 		if node.left.ident == node.right.ident {
-			// Simulation of non-determinism arbitrarily picks left sequence.
-			interpret_tree(node.left)
+			if rand.Intn(2) == 1 {
+				interpret_tree(node.right)
+			} else {
+				interpret_tree(node.left)
+			}
 			break
 		}
 		fallthrough
