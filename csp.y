@@ -20,7 +20,7 @@ type cspEventList []string
 type cspAlphabetMap map[string]cspEventList
 
 var root *cspTree
-var env cspEventList
+var rootTrace cspEventList
 
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
@@ -37,7 +37,7 @@ var eventBuf cspEventList
 %type <node> Expr Process
 
 %token <ident> cspEvent cspProcessTok
-%token cspLet cspAlphabetTok cspEnvDef
+%token cspLet cspAlphabetTok cspTraceDef
 %left cspParallel
 %left cspGenChoice cspOr
 %left cspChoice
@@ -83,9 +83,9 @@ Decl:
 			alphabets[$3] = eventBuf
 			eventBuf = nil
 		}
-	| cspEnvDef EventSet
+	| cspTraceDef EventSet
 		{
-			env = eventBuf
+			rootTrace = eventBuf
 			eventBuf = nil
 		}
 	| cspLet cspProcessTok '=' Expr {processDefinitions[$2] = $4}
@@ -114,8 +114,8 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 		switch ident {
 		case "let":
 			token = cspLet
-		case "envdef":
-			token = cspEnvDef
+		case "tracedef":
+			token = cspTraceDef
 		default:
 			r, _ := utf8.DecodeRuneInString(ident)
 			if unicode.IsUpper(r) {

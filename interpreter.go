@@ -13,7 +13,7 @@ import (
 
 //go:generate go tool yacc -p "csp" -o parser.go csp.y
 
-var envCount int = 0
+var traceCount int = 0
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -67,31 +67,32 @@ func interpret_tree(node *cspTree) {
 		fallthrough
 	case cspChoice:
 		switch {
-		case len(env) <= envCount:
+		case len(rootTrace) <= traceCount:
 			log.Printf("Environment ran out of events.")
 		case node.left.ident == node.right.ident:
 			log.Printf("Cannot have a choice between identical events.")
-		case env[envCount] == node.left.ident:
-			envCount++
+		case rootTrace[traceCount] == node.left.ident:
+			traceCount++
 			interpret_tree(node.left.right)
-		case env[envCount] == node.right.ident:
-			envCount++
+		case rootTrace[traceCount] == node.right.ident:
+			traceCount++
 			interpret_tree(node.right.right)
 		default:
 			fmt := "Deadlock: environment (%s) " +
 				"matches neither of the choice events (%s/%s)"
-			log.Printf(fmt, env[envCount], node.left.ident, node.right.ident)
+			log.Printf(fmt, rootTrace[traceCount],
+				node.left.ident, node.right.ident)
 		}
 	case cspEvent:
 		switch {
-		case len(env) <= envCount:
+		case len(rootTrace) <= traceCount:
 			log.Printf("Environment ran out of events.")
-		case env[envCount] != node.ident:
+		case rootTrace[traceCount] != node.ident:
 			fmt := "Deadlock: environment (%s) " +
 				"does not match prefixed event (%s)"
-			log.Printf(fmt, env[envCount], node.ident)
+			log.Printf(fmt, rootTrace[traceCount], node.ident)
 		case node.right != nil:
-			envCount++
+			traceCount++
 			interpret_tree(node.right)
 		default:
 			log.Printf("Process ran out of events.")
