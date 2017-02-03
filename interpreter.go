@@ -54,6 +54,12 @@ func print_tree(node *cspTree) {
 }
 
 func interpret_tree(node *cspTree) {
+	if len(rootTrace) <= traceCount {
+		log.Printf("Environment ran out of events.")
+		return
+	}
+	trace := rootTrace[traceCount]
+
 	switch node.tok {
 	case cspGenChoice, cspOr:
 		if node.tok == cspOr || node.left.ident == node.right.ident {
@@ -67,30 +73,25 @@ func interpret_tree(node *cspTree) {
 		fallthrough
 	case cspChoice:
 		switch {
-		case len(rootTrace) <= traceCount:
-			log.Printf("Environment ran out of events.")
 		case node.left.ident == node.right.ident:
 			log.Printf("Cannot have a choice between identical events.")
-		case rootTrace[traceCount] == node.left.ident:
+		case trace == node.left.ident:
 			traceCount++
 			interpret_tree(node.left.right)
-		case rootTrace[traceCount] == node.right.ident:
+		case trace == node.right.ident:
 			traceCount++
 			interpret_tree(node.right.right)
 		default:
 			fmt := "Deadlock: environment (%s) " +
 				"matches neither of the choice events (%s/%s)"
-			log.Printf(fmt, rootTrace[traceCount],
-				node.left.ident, node.right.ident)
+			log.Printf(fmt, trace, node.left.ident, node.right.ident)
 		}
 	case cspEvent:
 		switch {
-		case len(rootTrace) <= traceCount:
-			log.Printf("Environment ran out of events.")
-		case rootTrace[traceCount] != node.ident:
+		case trace != node.ident:
 			fmt := "Deadlock: environment (%s) " +
 				"does not match prefixed event (%s)"
-			log.Printf(fmt, rootTrace[traceCount], node.ident)
+			log.Printf(fmt, trace, node.ident)
 		case node.right != nil:
 			traceCount++
 			interpret_tree(node.right)
