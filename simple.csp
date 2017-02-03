@@ -1,4 +1,4 @@
 let P = x->y->z->P
 tracedef x y x y z x y z x y z
 
-x->y->P
+y->y[|]x->y->P
