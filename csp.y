@@ -48,6 +48,7 @@ var eventBuf cspEventList
 Start:
 	Expr {root = $1}
 	| Decl
+	|
 
 Expr:
 	Process {$$ = $1}
