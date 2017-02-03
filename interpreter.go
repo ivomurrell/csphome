@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"log"
+	"os"
 	"strings"
 	"text/scanner"
 )
@@ -11,9 +14,23 @@ import (
 var envCount int = 0
 
 func main() {
-	var s scanner.Scanner
-	s.Init(strings.NewReader("aaaa->Q|b->c->P"))
-	cspParse(&cspLex{s})
+	path := flag.String("f", "", "File path to CSP definitions.")
+	flag.Parse()
+	if *path == "" {
+		log.Fatal("Must specify file to be interpreted using -f flag.")
+	}
+
+	file, err := os.Open(*path)
+	if err != nil {
+		log.Fatalf("%s: \"%s\"", err, *path)
+	}
+	in := bufio.NewScanner(file)
+
+	var lineScan scanner.Scanner
+	for in.Scan() {
+		lineScan.Init(strings.NewReader(in.Text()))
+		cspParse(&cspLex{s: lineScan})
+	}
 
 	if root != nil {
 		print_tree(root)
