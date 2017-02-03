@@ -103,9 +103,7 @@ type cspLex struct {
 	s scanner.Scanner
 }
 
-func (x *cspLex) Lex(lvalue *cspSymType) int {
-	var token int
-
+func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 	if t := x.peekNextSymbol(); t == 'α' {
 		x.s.Next()
 		token = cspAlphabetTok
@@ -166,7 +164,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) int {
 		}
 	}
 
-	return token
+	return
 }
 
 func (x *cspLex) peekNextSymbol() rune {
