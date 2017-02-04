@@ -155,11 +155,10 @@ func parallelMonitor(left chan bool, right chan bool) {
 	if isLeftDone {
 		c = right
 		running = <-c
-		traceCount++
 	} else {
 		c = left
-		traceCount++
 	}
+	traceCount++
 
 	for running {
 		c <- true
