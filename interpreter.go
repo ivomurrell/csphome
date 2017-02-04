@@ -13,12 +13,6 @@ import (
 
 //go:generate go tool yacc -p "csp" -o parser.go csp.y
 
-const (
-	forkConsumed = iota
-	forkRunning
-	forkDone
-)
-
 var traceCount int = 0
 
 func init() {
@@ -48,16 +42,14 @@ func main() {
 
 	if root != nil {
 		print_tree(root)
-		dummy := make(chan int)
-		go interpret_tree(root, dummy)
+		dummy := make(chan bool)
+		go interpret_tree(root, true, dummy)
 
-		running := forkRunning
-		for running != forkDone {
-			dummy <- -1
+		running := true
+		for running {
+			dummy <- false
 			running = <-dummy
-			if running == forkConsumed {
-				traceCount++
-			}
+			traceCount++
 		}
 	}
 }
@@ -70,32 +62,32 @@ func print_tree(node *cspTree) {
 	}
 }
 
-func interpret_tree(node *cspTree, parent chan int) {
-	<-parent
+func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
+	if needBarrier {
+		<-parent
+	}
 
 	if len(rootTrace) <= traceCount {
 		log.Printf("Environment ran out of events.")
-		parent <- forkDone
+		parent <- false
 		return
 	}
 	trace := rootTrace[traceCount]
 
 	switch node.tok {
 	case cspParallel:
-		left := make(chan int)
-		right := make(chan int)
-		go interpret_tree(node.left, left)
-		go interpret_tree(node.right, right)
+		left := make(chan bool)
+		right := make(chan bool)
+		go interpret_tree(node.left, false, left)
+		go interpret_tree(node.right, false, right)
 		parallelMonitor(left, right)
-		parent <- forkDone
+		parent <- false
 	case cspGenChoice, cspOr:
 		if node.tok == cspOr || node.left.ident == node.right.ident {
 			if rand.Intn(2) == 1 {
-				parent <- forkRunning
-				interpret_tree(node.right, parent)
+				interpret_tree(node.right, false, parent)
 			} else {
-				parent <- forkRunning
-				interpret_tree(node.left, parent)
+				interpret_tree(node.left, false, parent)
 			}
 			break
 		}
@@ -104,18 +96,18 @@ func interpret_tree(node *cspTree, parent chan int) {
 		switch {
 		case node.left.ident == node.right.ident:
 			log.Printf("Cannot have a choice between identical events.")
-			parent <- forkDone
+			parent <- false
 		case trace == node.left.ident:
-			parent <- forkConsumed
-			interpret_tree(node.left.right, parent)
+			parent <- true
+			interpret_tree(node.left.right, true, parent)
 		case trace == node.right.ident:
-			parent <- forkConsumed
-			interpret_tree(node.right.right, parent)
+			parent <- true
+			interpret_tree(node.right.right, true, parent)
 		default:
 			fmt := "Deadlock: environment (%s) " +
 				"matches neither of the choice events (%s/%s)"
 			log.Printf(fmt, trace, node.left.ident, node.right.ident)
-			parent <- forkDone
+			parent <- false
 		}
 	case cspEvent:
 		switch {
@@ -123,90 +115,78 @@ func interpret_tree(node *cspTree, parent chan int) {
 			fmt := "Deadlock: environment (%s) " +
 				"does not match prefixed event (%s)"
 			log.Printf(fmt, trace, node.ident)
-			parent <- forkDone
+			parent <- false
 		case node.right != nil:
-			parent <- forkConsumed
-			interpret_tree(node.right, parent)
+			parent <- true
+			interpret_tree(node.right, true, parent)
 		default:
 			log.Printf("Process ran out of events.")
-			parent <- forkDone
+			parent <- false
 		}
 	case cspProcessTok:
 		p, ok := processDefinitions[node.ident]
 		if ok {
-			parent <- forkRunning
-			interpret_tree(p, parent)
+			interpret_tree(p, false, parent)
 		} else {
 			log.Printf("Process %s is not defined.", node.ident)
-			parent <- forkDone
+			parent <- false
 		}
 	}
 }
 
-func parallelMonitor(left chan int, right chan int) {
-	left <- -1
-	right <- -1
-
+func parallelMonitor(left chan bool, right chan bool) {
 	var isLeftDone bool
 	oneConsumed := false
 DoubleMonitor:
 	for {
 		select {
 		case running := <-left:
-			switch running {
-			case forkRunning:
-				left <- -1
-			case forkDone:
+			if running {
+				if oneConsumed {
+					traceCount++
+					oneConsumed = false
+					left <- true
+					right <- true
+				} else {
+					oneConsumed = true
+				}
+			} else {
 				isLeftDone = true
 				break DoubleMonitor
-			case forkConsumed:
-				if oneConsumed {
-					traceCount++
-					oneConsumed = false
-					left <- -1
-					right <- -1
-				} else {
-					oneConsumed = true
-				}
 			}
 		case running := <-right:
-			switch running {
-			case forkRunning:
-				right <- -1
-			case forkDone:
-				isLeftDone = false
-				break DoubleMonitor
-			case forkConsumed:
+			if running {
 				if oneConsumed {
 					traceCount++
 					oneConsumed = false
-					left <- -1
-					right <- -1
+					left <- true
+					right <- true
 				} else {
 					oneConsumed = true
 				}
+			} else {
+				isLeftDone = false
+				break DoubleMonitor
 			}
 		}
 	}
 
-	var c chan int
+	var c chan bool
 	if isLeftDone {
 		c = right
 	} else {
 		c = left
 	}
 
-	running := forkRunning
+	running := true
 	if oneConsumed {
 		traceCount++
 	} else {
 		running = <-c
 	}
-	for running != forkDone {
-		c <- -1
+	for running {
+		c <- true
 		running = <-c
-		if running == forkConsumed {
-			traceCount++
-		}
+		traceCount++
 	}
 }
