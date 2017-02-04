@@ -136,54 +136,31 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 
 func parallelMonitor(left chan bool, right chan bool) {
 	var isLeftDone bool
-	oneConsumed := false
-DoubleMonitor:
 	for {
-		select {
-		case running := <-left:
-			if running {
-				if oneConsumed {
-					traceCount++
-					oneConsumed = false
-					left <- true
-					right <- true
-				} else {
-					oneConsumed = true
-				}
-			} else {
-				isLeftDone = true
-				break DoubleMonitor
-			}
-		case running := <-right:
-			if running {
-				if oneConsumed {
-					traceCount++
-					oneConsumed = false
-					left <- true
-					right <- true
-				} else {
-					oneConsumed = true
-				}
-			} else {
-				isLeftDone = false
-				break DoubleMonitor
-			}
+		if running := <-left; !running {
+			isLeftDone = true
+			break
 		}
+		if running := <-right; !running {
+			isLeftDone = false
+			break
+		}
+		traceCount++
+		left <- true
+		right <- true
 	}
 
 	var c chan bool
+	running := true
 	if isLeftDone {
 		c = right
-	} else {
-		c = left
-	}
-
-	running := true
-	if oneConsumed {
+		running = <-c
 		traceCount++
 	} else {
-		running = <-c
+		c = left
+		traceCount++
 	}
+
 	for running {
 		c <- true
 		running = <-c
