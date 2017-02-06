@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -40,7 +41,11 @@ func main() {
 	}
 	file.Close()
 
-	if root != nil {
+	err = errorPass()
+
+	if err != nil {
+		log.Fatal(err)
+	} else if root != nil {
 		print_tree(root)
 		dummy := make(chan bool)
 		go interpret_tree(root, true, dummy)
@@ -165,4 +170,48 @@ func parallelMonitor(left chan bool, right chan bool) {
 		running = <-c
 		traceCount++
 	}
+}
+
+func errorPass() (err error) {
+	for ident, p := range processDefinitions {
+		err = checkAlphabet(ident, p)
+		if err != nil {
+			return
+		}
+
+	}
+
+	return nil
+}
+
+func checkAlphabet(ident string, root *cspTree) (err error) {
+	alphabet := alphabets[ident]
+
+	if root.tok == cspEvent {
+		found := false
+
+		for _, a := range alphabet {
+			if a == root.ident {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			errFmt := "Syntax error: Event %s not in %s's alphabet."
+			return fmt.Errorf(errFmt, root.ident, ident)
+		}
+	}
+
+	if root.left != nil {
+		err = checkAlphabet(ident, root.left)
+		if err != nil {
+			return err
+		}
+	}
+
+	if root.right != nil {
+		err = checkAlphabet(ident, root.right)
+	}
+	return err
 }
