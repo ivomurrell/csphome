@@ -175,32 +175,43 @@ func parallelMonitor(left chan bool, right chan bool) {
 	}
 }
 
-func errorPass() (err error) {
+func errorPass() error {
 	for ident, p := range processDefinitions {
-		brandProcessEvents(ident, p)
-
-		err = checkAlphabet(p)
+		err := errorPassProcess(ident, p)
 		if err != nil {
-			return
+			return err
 		}
-
 	}
 
 	return nil
 }
 
-func brandProcessEvents(name string, root *cspTree) {
-	root.process = name
+func errorPassProcess(name string, root *cspTree) (err error) {
+	brandProcessEvents(name, root)
+
+	err = checkAlphabet(root)
+	if err != nil {
+		return
+	}
 
 	if root.left != nil {
-		brandProcessEvents(name, root.left)
+		err = errorPassProcess(name, root.left)
+		if err != nil {
+			return
+		}
 	}
+
 	if root.right != nil {
-		brandProcessEvents(name, root.right)
+		err = errorPassProcess(name, root.right)
 	}
+	return
 }
 
-func checkAlphabet(root *cspTree) (err error) {
+func brandProcessEvents(name string, root *cspTree) {
+	root.process = name
+}
+
+func checkAlphabet(root *cspTree) error {
 	if root.tok == cspEvent {
 		if !inAlphabet(root.process, root.ident) {
 			errFmt := "Syntax error: Event %s not in %s's alphabet."
@@ -208,17 +219,7 @@ func checkAlphabet(root *cspTree) (err error) {
 		}
 	}
 
-	if root.left != nil {
-		err = checkAlphabet(root.left)
-		if err != nil {
-			return err
-		}
-	}
-
-	if root.right != nil {
-		err = checkAlphabet(root.right)
-	}
-	return err
+	return nil
 }
 
 func inAlphabet(process string, event string) (found bool) {
