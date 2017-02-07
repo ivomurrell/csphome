@@ -12,6 +12,7 @@ import (
 type cspTree struct {
 	tok int
 	ident string
+	process string
 	left *cspTree
 	right *cspTree
 }

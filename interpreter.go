@@ -116,6 +116,9 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 		}
 	case cspEvent:
 		switch {
+		case !inAlphabet(node.process, node.ident):
+			parent <- true
+			interpret_tree(node, true, parent)
 		case trace != node.ident:
 			fmt := "Deadlock: environment (%s) " +
 				"does not match prefixed event (%s)"
@@ -129,11 +132,11 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 			parent <- false
 		}
 	case cspProcessTok:
-		p, ok := processDefinitions[node.ident]
+		p, ok := processDefinitions[node.process]
 		if ok {
 			interpret_tree(p, false, parent)
 		} else {
-			log.Printf("Process %s is not defined.", node.ident)
+			log.Printf("Process %s is not defined.", node.process)
 			parent <- false
 		}
 	}
@@ -174,7 +177,9 @@ func parallelMonitor(left chan bool, right chan bool) {
 
 func errorPass() (err error) {
 	for ident, p := range processDefinitions {
-		err = checkAlphabet(ident, p)
+		brandProcessEvents(ident, p)
+
+		err = checkAlphabet(p)
 		if err != nil {
 			return
 		}
@@ -184,34 +189,47 @@ func errorPass() (err error) {
 	return nil
 }
 
-func checkAlphabet(ident string, root *cspTree) (err error) {
-	alphabet := alphabets[ident]
+func brandProcessEvents(name string, root *cspTree) {
+	root.process = name
 
+	if root.left != nil {
+		brandProcessEvents(name, root.left)
+	}
+	if root.right != nil {
+		brandProcessEvents(name, root.right)
+	}
+}
+
+func checkAlphabet(root *cspTree) (err error) {
 	if root.tok == cspEvent {
-		found := false
-
-		for _, a := range alphabet {
-			if a == root.ident {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if !inAlphabet(root.process, root.ident) {
 			errFmt := "Syntax error: Event %s not in %s's alphabet."
-			return fmt.Errorf(errFmt, root.ident, ident)
+			return fmt.Errorf(errFmt, root.ident, root.process)
 		}
 	}
 
 	if root.left != nil {
-		err = checkAlphabet(ident, root.left)
+		err = checkAlphabet(root.left)
 		if err != nil {
 			return err
 		}
 	}
 
 	if root.right != nil {
-		err = checkAlphabet(ident, root.right)
+		err = checkAlphabet(root.right)
 	}
 	return err
+}
+
+func inAlphabet(process string, event string) (found bool) {
+	alphabet := alphabets[process]
+
+	for _, a := range alphabet {
+		if a == event {
+			found = true
+			break
+		}
+	}
+
+	return
 }
