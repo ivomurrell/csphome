@@ -123,6 +123,8 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 			token = cspLet
 		case "tracedef":
 			token = cspTraceDef
+		case "alphadef":
+			token = cspAlphabetTok
 		default:
 			r, _ := utf8.DecodeRuneInString(ident)
 			if unicode.IsUpper(r) {
