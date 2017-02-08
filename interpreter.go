@@ -102,9 +102,6 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 		fallthrough
 	case cspChoice:
 		switch {
-		case node.left.ident == node.right.ident:
-			log.Printf("Cannot have a choice between identical events.")
-			parent <- false
 		case trace == node.left.ident:
 			parent <- true
 			interpret_tree(node.left.right, true, parent)
@@ -197,6 +194,11 @@ func errorPassProcess(name string, root *cspTree) (err error) {
 		return
 	}
 
+	err = checkDeterministicChoice(root)
+	if err != nil {
+		return
+	}
+
 	if root.left != nil {
 		err = errorPassProcess(name, root.left)
 		if err != nil {
@@ -219,6 +221,36 @@ func checkAlphabet(root *cspTree) error {
 		if !inAlphabet(root.process, root.ident) {
 			errFmt := "Syntax error: Event %s not in %s's alphabet."
 			return fmt.Errorf(errFmt, root.ident, root.process)
+		}
+	}
+
+	return nil
+}
+
+func checkDeterministicChoice(root *cspTree) error {
+	if root.tok == cspChoice {
+		var left, right string
+		switch root.left.tok {
+		case cspEvent:
+			left = root.left.ident
+		case cspProcessTok:
+			left = processDefinitions[root.left.process].ident
+		default:
+			log.Fatal("Do not currently support multiple choice branches.")
+		}
+		switch root.right.tok {
+		case cspEvent:
+			right = root.right.ident
+		case cspProcessTok:
+			right = processDefinitions[root.right.process].ident
+		default:
+			log.Fatal("Do not currently support multiple choice branches.")
+		}
+
+		if left == right {
+			errFmt := "Syntax error: Cannot have a choice " +
+				"between identical events (%s + %s)."
+			return fmt.Errorf(errFmt, left, right)
 		}
 	}
 
