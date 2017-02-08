@@ -26,6 +26,9 @@ var rootTrace cspEventList
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
 
+var wasParserError bool
+var lineNo int
+
 var eventBuf cspEventList
 
 %}
@@ -49,6 +52,11 @@ var eventBuf cspEventList
 Start:
 	Expr {root = $1}
 	| Decl
+	| error
+		{
+			wasParserError = true
+			log.Printf("Parse error at line %v", lineNo)
+		}
 	|
 
 Expr:
@@ -157,6 +165,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 				token = cspParallel
 			}
 		case scanner.EOF:
+			lineNo++
 			token = eof
 		case '=', ',':
 			token = int(t)

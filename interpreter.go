@@ -40,6 +40,9 @@ func main() {
 		cspParse(&cspLex{s: lineScan})
 	}
 	file.Close()
+	if wasParserError {
+		return
+	}
 
 	err = errorPass()
 
