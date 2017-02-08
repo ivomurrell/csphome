@@ -49,7 +49,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else if root != nil {
-		print_tree(root)
 		dummy := make(chan bool)
 		go interpret_tree(root, true, dummy)
 
