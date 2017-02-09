@@ -27,7 +27,7 @@ var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
 
 var wasParserError bool
-var lineNo int
+var lineNo int = 1
 
 var eventBuf cspEventList
 
