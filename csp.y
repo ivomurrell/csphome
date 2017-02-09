@@ -187,5 +187,9 @@ func (x *cspLex) peekNextSymbol() rune {
 }
 
 func (x *cspLex) Error(s string) {
-	log.Printf("Parse error at line %v", lineNo)
+	if cspErrorVerbose {
+		log.Printf("Parse error at line %v (%s)", lineNo, s)
+	} else {
+		log.Printf("Parse error at line %v", lineNo)
+	}
 }
