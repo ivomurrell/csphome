@@ -4,6 +4,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"text/scanner"
 	"unicode"
 	"unicode/utf8"
@@ -25,6 +26,7 @@ var rootTrace cspEventList
 
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
+var channels cspAlphabetMap = make(cspAlphabetMap)
 
 var wasParserError bool
 var lineNo int = 1
@@ -38,10 +40,10 @@ var eventBuf cspEventList
 	ident string
 }
 
-%type <node> Expr Process
+%type <node> Expr Process Event
 
 %token <ident> cspEvent cspProcessTok
-%token cspLet cspAlphabetTok cspTraceDef
+%token cspLet cspAlphabetTok cspTraceDef cspChannelDef
 %left cspParallel
 %left cspGenChoice cspOr
 %left cspChoice
@@ -75,17 +77,52 @@ Expr:
 		}
 
 Process:
-	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
+	Event
 	| cspProcessTok {$$ = &cspTree{tok: cspProcessTok, ident: $1}}
-	| cspEvent cspPrefix Process
+	| Event cspPrefix Process
 		{
-			$$ = &cspTree{tok: cspEvent, ident: $1, right: $3}
+			$1.right = $3
+			$$ = $3
+		}
+	| cspEvent '?' cspEvent cspPrefix Process
+		{
+			inputRoot := &cspTree{tok: cspChoice}
+			currentRoot := inputRoot
+			for i, v := range channels[$1] {
+				inputIdent := $1 + "." + v
+				inputProcess := substituteInputVars($1, $3, $5)
+				inputBranch := &cspTree {
+					tok: cspEvent, ident: inputIdent, right: inputProcess}
+				if i != len(channels) - 1 {
+					currentRoot.left = inputBranch
+					if i != len(channels) - 2 {
+						currentRoot.right = &cspTree{tok:cspChoice}
+						currentRoot = currentRoot.right
+					}
+				} else {
+					currentRoot.right = inputBranch
+				}
+			}
+			$$ = inputRoot
+		}
+
+Event:
+	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
+	| cspEvent '!' cspEvent
+		{
+			outputIdent := $1 + "." + $3
+			$$ = &cspTree{tok: cspEvent, ident: outputIdent}
 		}
 
 Decl:
 	cspLet cspAlphabetTok cspProcessTok '=' EventSet
 		{
 			alphabets[$3] = eventBuf
+			eventBuf = nil
+		}
+	| cspLet cspChannelDef cspEvent '=' EventSet
+		{
+			channels[$3] = eventBuf
 			eventBuf = nil
 		}
 	| cspTraceDef EventSet
@@ -121,12 +158,19 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 			token = cspTraceDef
 		case "alphadef":
 			token = cspAlphabetTok
+		case "chandef", "channeldef":
+			token = cspChannelDef
 		default:
 			r, _ := utf8.DecodeRuneInString(ident)
 			if unicode.IsUpper(r) {
 				token = cspProcessTok
 			} else {
 				token = cspEvent
+				if x.peekNextSymbol() == '.' {
+					x.s.Scan()
+					x.s.Scan()
+					ident = ident + "." + x.s.TokenText()
+				}
 			}
 		}
 		lvalue.ident = ident
@@ -165,7 +209,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 		case scanner.EOF:
 			lineNo++
 			token = eof
-		case '=', ',':
+		case '=', ',', '!', '?':
 			token = int(t)
 		default:
 			log.Printf("Unrecognised character: %q", t)
@@ -192,4 +236,30 @@ func (x *cspLex) Error(s string) {
 	} else {
 		log.Printf("Parse error at line %v", lineNo)
 	}
+}
+
+func substituteInputVars(oldI string, newI string, root *cspTree) *cspTree {
+	if root.tok == cspEvent {
+		if root.ident == oldI {
+			root.ident = newI
+		} else if strings.HasSuffix(root.ident, "."+oldI) {
+			root.ident = strings.TrimSuffix(root.ident, "."+oldI) + "." + newI
+		}
+	}
+
+	var (
+		left  *cspTree
+		right *cspTree
+	)
+	if root.left != nil {
+		left = substituteInputVars(oldI, newI, root.left)
+	}
+	if root.right != nil {
+		right = substituteInputVars(oldI, newI, root.right)
+	}
+
+	nodeCopy := *root
+	nodeCopy.left = left
+	nodeCopy.right = right
+	return &nodeCopy
 }
