@@ -52,11 +52,7 @@ var eventBuf cspEventList
 Start:
 	Expr {root = $1}
 	| Decl
-	| error
-		{
-			wasParserError = true
-			log.Printf("Parse error at line %v", lineNo)
-		}
+	| error {wasParserError = true}
 	|
 
 Expr:
@@ -191,5 +187,5 @@ func (x *cspLex) peekNextSymbol() rune {
 }
 
 func (x *cspLex) Error(s string) {
-	log.Printf("parse error: %s", s)
+	log.Printf("Parse error at line %v", lineNo)
 }
