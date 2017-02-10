@@ -26,12 +26,16 @@ var rootTrace cspEventList
 
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
 var alphabets cspAlphabetMap = make(cspAlphabetMap)
-var channels cspAlphabetMap = make(cspAlphabetMap)
+
+var channels map[string]chan string = make(map[string]chan string)
+var channelAlphas cspAlphabetMap = make(cspAlphabetMap)
 
 var wasParserError bool
 var lineNo int = 1
 
 var eventBuf cspEventList
+
+var useFormalCommunication bool = false
 
 %}
 
@@ -86,32 +90,46 @@ Process:
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
 		{
-			inputRoot := &cspTree{tok: cspChoice}
-			currentRoot := inputRoot
-			for i, v := range channels[$1] {
-				inputIdent := $1 + "." + v
-				inputProcess := substituteInputVars($1, $3, $5)
-				inputBranch := &cspTree {
-					tok: cspEvent, ident: inputIdent, right: inputProcess}
-				if i != len(channels) - 1 {
-					currentRoot.left = inputBranch
-					if i != len(channels) - 2 {
-						currentRoot.right = &cspTree{tok:cspChoice}
-						currentRoot = currentRoot.right
+			if useFormalCommunication {
+				inputRoot := &cspTree{tok: cspChoice}
+				currentRoot := inputRoot
+				for i, v := range channelAlphas[$1] {
+					inputIdent := $1 + "." + v
+					inputProcess := substituteInputVars($1, $3, $5)
+					inputBranch := &cspTree {
+						tok: cspEvent, ident: inputIdent, right: inputProcess}
+					if i != len(channelAlphas) - 1 {
+						currentRoot.left = inputBranch
+						if i != len(channelAlphas) - 2 {
+							currentRoot.right = &cspTree{tok:cspChoice}
+							currentRoot = currentRoot.right
+						}
+					} else {
+						currentRoot.right = inputBranch
 					}
-				} else {
-					currentRoot.right = inputBranch
 				}
+				$$ = inputRoot
+			} else {
+				if _, found := channels[$1]; !found {
+					channels[$1] = make(chan string)
+				}
+				$$ = &cspTree{tok: '?', ident: $1+"."+$3, right: $5}
 			}
-			$$ = inputRoot
 		}
 
 Event:
 	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
 	| cspEvent '!' cspEvent
 		{
-			outputIdent := $1 + "." + $3
-			$$ = &cspTree{tok: cspEvent, ident: outputIdent}
+			if useFormalCommunication {
+				outputIdent := $1 + "." + $3
+				$$ = &cspTree{tok: cspEvent, ident: outputIdent}
+			} else {
+				if _, found := channels[$1]; !found {
+					channels[$1] = make(chan string)
+				}
+				$$ = &cspTree{tok: '!', ident: $1+"."+$3}
+			}
 		}
 
 Decl:
@@ -122,7 +140,7 @@ Decl:
 		}
 	| cspLet cspChannelDef cspEvent '=' EventSet
 		{
-			channels[$3] = eventBuf
+			channelAlphas[$3] = eventBuf
 			eventBuf = nil
 		}
 	| cspTraceDef EventSet

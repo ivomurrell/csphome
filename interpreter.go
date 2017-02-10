@@ -14,6 +14,8 @@ import (
 
 //go:generate go tool yacc -p "csp" -o parser.go csp.y
 
+type cspValueMappings map[string]string
+
 var traceCount int = 0
 
 func init() {
@@ -50,7 +52,8 @@ func main() {
 		log.Fatal(err)
 	} else if root != nil {
 		dummy := make(chan bool)
-		go interpret_tree(root, true, dummy)
+		rootMap := make(cspValueMappings)
+		go interpret_tree(root, true, dummy, &rootMap)
 
 		running := true
 		for running {
@@ -69,7 +72,12 @@ func print_tree(node *cspTree) {
 	}
 }
 
-func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
+func interpret_tree(
+	node *cspTree,
+	needBarrier bool,
+	parent chan bool,
+	mappings *cspValueMappings) {
+
 	if needBarrier {
 		<-parent
 	}
@@ -85,16 +93,19 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 	case cspParallel:
 		left := make(chan bool)
 		right := make(chan bool)
-		go interpret_tree(node.left, false, left)
-		go interpret_tree(node.right, false, right)
+		leftMap := *mappings
+		rightMap := *mappings
+
+		go interpret_tree(node.left, false, left, &leftMap)
+		go interpret_tree(node.right, false, right, &rightMap)
 		parallelMonitor(left, right)
 		parent <- false
 	case cspGenChoice, cspOr:
 		if node.tok == cspOr || node.left.ident == node.right.ident {
 			if rand.Intn(2) == 1 {
-				interpret_tree(node.right, false, parent)
+				interpret_tree(node.right, false, parent, mappings)
 			} else {
-				interpret_tree(node.left, false, parent)
+				interpret_tree(node.left, false, parent, mappings)
 			}
 			break
 		}
@@ -103,10 +114,10 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 		switch {
 		case trace == node.left.ident:
 			parent <- true
-			interpret_tree(node.left.right, true, parent)
+			interpret_tree(node.left.right, true, parent, mappings)
 		case trace == node.right.ident:
 			parent <- true
-			interpret_tree(node.right.right, true, parent)
+			interpret_tree(node.right.right, true, parent, mappings)
 		default:
 			fmt := "Deadlock: environment (%s) " +
 				"matches neither of the choice events (%s/%s)"
@@ -117,7 +128,7 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 		switch {
 		case !inAlphabet(node.process, node.ident):
 			parent <- true
-			interpret_tree(node, true, parent)
+			interpret_tree(node, true, parent, mappings)
 		case trace != node.ident:
 			fmt := "Deadlock: environment (%s) " +
 				"does not match prefixed event (%s)"
@@ -125,7 +136,7 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 			parent <- false
 		case node.right != nil:
 			parent <- true
-			interpret_tree(node.right, true, parent)
+			interpret_tree(node.right, true, parent, mappings)
 		default:
 			log.Printf("Process ran out of events.")
 			parent <- false
@@ -133,11 +144,25 @@ func interpret_tree(node *cspTree, needBarrier bool, parent chan bool) {
 	case cspProcessTok:
 		p, ok := processDefinitions[node.process]
 		if ok {
-			interpret_tree(p, false, parent)
+			interpret_tree(p, false, parent, mappings)
 		} else {
 			log.Printf("Process %s is not defined.", node.process)
 			parent <- false
 		}
+	case '!':
+		args := strings.Split(node.ident, ".")
+		log.Print("Outputting on ", args[0])
+		channels[args[0]] <- args[1]
+
+		parent <- true
+		interpret_tree(node.right, true, parent, mappings)
+	case '?':
+		args := strings.Split(node.ident, ".")
+		log.Print("Listening on ", args[0])
+		(*mappings)[args[1]] = <-channels[args[0]]
+
+		parent <- true
+		interpret_tree(node.right, true, parent, mappings)
 	}
 }
 
