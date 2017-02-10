@@ -24,7 +24,12 @@ func init() {
 
 func main() {
 	path := flag.String("f", "", "File path to CSP definitions.")
+	flagUsage := "Use static trees generated at compile time to handle " +
+		"channel input. Mirrors the CSP definition more closely whilst " +
+		"using significantly more memory."
+	useFormalCommunication = flag.Bool("formalchannels", false, flagUsage)
 	flag.Parse()
+
 	if *path == "" {
 		log.Fatal("Must specify file to be interpreted using -f flag.")
 	}
