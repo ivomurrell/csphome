@@ -82,7 +82,7 @@ Process:
 	| Event cspPrefix Process
 		{
 			$1.right = $3
-			$$ = $3
+			$$ = $1
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
 		{
