@@ -251,6 +251,13 @@ func checkAlphabet(root *cspTree) error {
 			errFmt := "Syntax error: Event %s not in %s's alphabet."
 			return fmt.Errorf(errFmt, root.ident, root.process)
 		}
+	} else if root.tok == '!' || root.tok == '?' {
+		i := strings.LastIndex(root.ident, ".") + 1
+		variable := root.ident[i:]
+		if !inAlphabet(root.process, variable) {
+			alphabet := alphabets[root.process]
+			alphabets[root.process] = append(alphabet, variable)
+		}
 	}
 
 	return nil
