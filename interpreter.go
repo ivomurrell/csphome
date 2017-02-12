@@ -147,11 +147,11 @@ func interpret_tree(
 			parent <- false
 		}
 	case cspProcessTok:
-		p, ok := processDefinitions[node.process]
+		p, ok := processDefinitions[node.ident]
 		if ok {
 			interpret_tree(p, false, parent, mappings)
 		} else {
-			log.Printf("Process %s is not defined.", node.process)
+			log.Printf("Process %s is not defined.", node.ident)
 			parent <- false
 		}
 	case '!':
