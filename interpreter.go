@@ -155,7 +155,7 @@ func interpret_tree(
 			parent <- false
 		}
 	case '!':
-		args := strings.Split(node.ident, ".")
+		args := strings.Split(trace, ".")
 		log.Print("Outputting on ", args[0])
 		channels[args[0]] <- args[1]
 
