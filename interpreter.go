@@ -134,17 +134,24 @@ func interpret_tree(
 		case !inAlphabet(node.process, node.ident):
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
-		case trace != node.ident:
-			fmt := "Deadlock: environment (%s) " +
-				"does not match prefixed event (%s)"
-			log.Printf(fmt, trace, node.ident)
-			parent <- false
-		case node.right != nil:
-			parent <- true
-			interpret_tree(node.right, true, parent, mappings)
-		default:
+		case node.right == nil:
 			log.Printf("Process ran out of events.")
 			parent <- false
+		default:
+			if trace != node.ident {
+				mappedEvent := (*mappings)[node.ident]
+
+				if trace != mappedEvent {
+					fmt := "Deadlock: environment (%s) " +
+						"does not match prefixed event (%s)"
+					log.Printf(fmt, trace, node.ident)
+					parent <- false
+					break
+				}
+			}
+
+			parent <- true
+			interpret_tree(node.right, true, parent, mappings)
 		}
 	case cspProcessTok:
 		p, ok := processDefinitions[node.ident]
