@@ -131,7 +131,7 @@ func interpret_tree(
 		}
 	case cspEvent:
 		switch {
-		case !inAlphabet(node.process, node.ident):
+		case !inAlphabet(node.process, trace):
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
 		case node.right == nil:
