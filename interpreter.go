@@ -117,17 +117,12 @@ func interpret_tree(
 		}
 		fallthrough
 	case cspChoice:
-		switch {
-		case trace == node.left.ident:
-			parent <- true
-			interpret_tree(node.left.right, true, parent, mappings)
-		case trace == node.right.ident:
-			parent <- true
-			interpret_tree(node.right.right, true, parent, mappings)
-		default:
+		if branch, events := choiceTraverse(trace, node); branch != nil {
+			interpret_tree(branch, false, parent, mappings)
+		} else {
 			fmt := "Deadlock: environment (%s) " +
-				"matches neither of the choice events (%s/%s)"
-			log.Printf(fmt, trace, node.left.ident, node.right.ident)
+				"matches none of the choice events %v."
+			log.Printf(fmt, trace, events)
 			parent <- false
 		}
 	case cspEvent:
@@ -216,6 +211,29 @@ func parallelMonitor(left chan bool, right chan bool, parent chan bool) {
 
 		parent <- true
 		<-parent
+	}
+}
+
+func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
+	switch root.tok {
+	case cspEvent:
+		if root.ident == target {
+			return root, []string{root.ident}
+		} else {
+			return nil, []string{root.ident}
+		}
+	case cspChoice:
+		result, leftEvents := choiceTraverse(target, root.left)
+		if result != nil {
+			return result, leftEvents
+		}
+
+		result, rightEvents := choiceTraverse(target, root.right)
+		return result, append(leftEvents, rightEvents...)
+	default:
+		log.Printf("Mixing a choice operator with a %v is not supported",
+			root.tok)
+		return nil, nil
 	}
 }
 
