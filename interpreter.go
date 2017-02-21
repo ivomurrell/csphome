@@ -103,7 +103,8 @@ func interpret_tree(
 
 		go interpret_tree(node.left, false, left, &leftMap)
 		go interpret_tree(node.right, false, right, &rightMap)
-		parallelMonitor(left, right)
+
+		parallelMonitor(left, right, parent)
 		parent <- false
 	case cspGenChoice, cspOr:
 		if node.tok == cspOr || node.left.ident == node.right.ident {
@@ -178,7 +179,7 @@ func interpret_tree(
 	}
 }
 
-func parallelMonitor(left chan bool, right chan bool) {
+func parallelMonitor(left chan bool, right chan bool, parent chan bool) {
 	var isLeftDone bool
 	for {
 		if running := <-left; !running {
@@ -189,7 +190,10 @@ func parallelMonitor(left chan bool, right chan bool) {
 			isLeftDone = false
 			break
 		}
-		traceCount++
+
+		parent <- true
+		<-parent
+
 		left <- true
 		right <- true
 	}
@@ -202,12 +206,16 @@ func parallelMonitor(left chan bool, right chan bool) {
 	} else {
 		c = left
 	}
-	traceCount++
+
+	parent <- true
+	<-parent
 
 	for running {
 		c <- true
 		running = <-c
-		traceCount++
+
+		parent <- true
+		<-parent
 	}
 }
 
