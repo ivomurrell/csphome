@@ -1,4 +1,5 @@
 let P = x->y->z->P
+let alphadef P = x y z
 tracedef x y x y z x y z x y z
 
 y->y[|]x->y->P
