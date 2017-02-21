@@ -1,0 +1,10 @@
+let P = x->c!v->P
+let Q = x->c?v->v->Q
+let R = x->x
+let αP = x
+let αQ = x a b
+let αR = x
+let chandef c = a b
+tracedef x c.a a x c.b b x c.a a
+
+P||Q||R

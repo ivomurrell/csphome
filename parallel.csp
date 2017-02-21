@@ -1,0 +1,7 @@
+let P = x->y->P
+let Q = x->y->z->Q
+let αP = x y
+let αQ = x y z
+tracedef x y z x y z x y x y x y
+
+P||Q
