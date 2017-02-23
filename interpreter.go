@@ -88,7 +88,7 @@ func interpret_tree(
 	}
 
 	if len(rootTrace) <= traceCount {
-		log.Printf("Environment ran out of events.")
+		log.Printf("%s: Environment ran out of events.", node.process)
 		parent <- false
 		return
 	}
@@ -120,9 +120,9 @@ func interpret_tree(
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpret_tree(branch, false, parent, mappings)
 		} else {
-			fmt := "Deadlock: environment (%s) " +
+			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
-			log.Printf(fmt, trace, events)
+			log.Printf(fmt, node.process, trace, events)
 			parent <- false
 		}
 	case cspEvent:
@@ -131,16 +131,16 @@ func interpret_tree(
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
 		case node.right == nil:
-			log.Printf("Process ran out of events.")
+			log.Printf("%s: Process ran out of events.", node.process)
 			parent <- false
 		default:
 			if trace != node.ident {
 				mappedEvent := (*mappings)[node.ident]
 
 				if trace != mappedEvent {
-					fmt := "Deadlock: environment (%s) " +
+					fmt := "%s: Deadlock: environment (%s) " +
 						"does not match prefixed event (%s)"
-					log.Printf(fmt, trace, node.ident)
+					log.Printf(fmt, node.process, trace, node.ident)
 					parent <- false
 					break
 				}
@@ -154,7 +154,8 @@ func interpret_tree(
 		if ok {
 			interpret_tree(p, false, parent, mappings)
 		} else {
-			log.Printf("Process %s is not defined.", node.ident)
+			log.Printf("%s: Process %s is not defined.",
+				node.process, node.ident)
 			parent <- false
 		}
 	case '!':
