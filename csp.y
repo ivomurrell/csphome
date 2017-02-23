@@ -63,6 +63,7 @@ Start:
 
 Expr:
 	Process {$$ = $1}
+	| '(' Process ')' {$$ = $2}
 	| Expr cspChoice Expr
 		{
 			$$ = &cspTree{tok: cspChoice, left: $1, right: $3}
@@ -86,6 +87,11 @@ Process:
 	| Event cspPrefix Process
 		{
 			$1.right = $3
+			$$ = $1
+		}
+	| Event cspPrefix '(' Expr ')'
+		{
+			$1.right = $4
 			$$ = $1
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
@@ -227,7 +233,7 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 		case scanner.EOF:
 			lineNo++
 			token = eof
-		case '=', ',', '!', '?':
+		case '=', ',', '!', '?', '(', ')':
 			token = int(t)
 		default:
 			log.Printf("Unrecognised character: %q", t)
