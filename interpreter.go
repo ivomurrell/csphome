@@ -66,6 +66,10 @@ func main() {
 			running = <-dummy
 			traceCount++
 		}
+
+		if len(rootTrace) <= traceCount {
+			log.Print("Environment ran out of events.")
+		}
 	}
 }
 
@@ -88,7 +92,6 @@ func interpret_tree(
 	}
 
 	if len(rootTrace) <= traceCount {
-		log.Printf("%s: Environment ran out of events.", node.process)
 		parent <- false
 		return
 	}
