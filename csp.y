@@ -21,7 +21,7 @@ type cspTree struct {
 type cspEventList []string
 type cspAlphabetMap map[string]cspEventList
 
-var root *cspTree
+var rootNode *cspTree
 var rootTrace cspEventList
 
 var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
@@ -56,7 +56,7 @@ var useFormalCommunication *bool
 %%
 
 Start:
-	Expr {root = $1}
+	Expr {rootNode = $1}
 	| Decl
 	| error {wasParserError = true}
 	|

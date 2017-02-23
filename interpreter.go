@@ -55,10 +55,10 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
-	} else if root != nil {
+	} else if rootNode != nil {
 		dummy := make(chan bool)
 		rootMap := make(cspValueMappings)
-		go interpret_tree(root, true, dummy, &rootMap)
+		go interpret_tree(rootNode, true, dummy, &rootMap)
 
 		running := true
 		for running {
