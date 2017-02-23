@@ -126,14 +126,10 @@ func interpret_tree(
 			parent <- false
 		}
 	case cspEvent:
-		switch {
-		case node.process != "" && !inAlphabet(node.process, trace):
+		if node.process != "" && !inAlphabet(node.process, trace) {
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
-		case node.right == nil:
-			log.Printf("%s: Process ran out of events.", node.process)
-			parent <- false
-		default:
+		} else {
 			if trace != node.ident {
 				mappedEvent := (*mappings)[node.ident]
 
@@ -144,6 +140,12 @@ func interpret_tree(
 					parent <- false
 					break
 				}
+			}
+
+			if node.right == nil {
+				log.Printf("%s: Process ran out of events.", node.process)
+				parent <- false
+				break
 			}
 
 			parent <- true
