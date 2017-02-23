@@ -6,4 +6,4 @@ A component towards my final year project at the University of Bath, studying th
 
 ## Building
 
-Assuming a valid Go installation, simply run ```go generate```, ```go install```, then ```csphome -f simple.csp```.
+Assuming a valid Go installation, simply run ```go get -u golang.org/x/tools/cmd/goyacc```, ```go generate```, ```go install```, then ```csphome -f simple.csp```.

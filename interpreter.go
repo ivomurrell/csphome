@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-//go:generate go tool yacc -p "csp" -o parser.go csp.y
+//go:generate goyacc -p "csp" -o parser.go csp.y
 
 type cspValueMappings map[string]string
 
