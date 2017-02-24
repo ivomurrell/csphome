@@ -69,6 +69,9 @@ func main() {
 
 		if len(rootTrace) < traceCount {
 			log.Print("Environment ran out of events.")
+		} else {
+			log.Print("Unexecuted environment events: ",
+				rootTrace[traceCount-1:])
 		}
 	}
 }
