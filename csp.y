@@ -63,7 +63,7 @@ Start:
 
 Expr:
 	Process {$$ = $1}
-	| '(' Process ')' {$$ = $2}
+	| '(' Expr ')' {$$ = $2}
 	| Expr cspChoice Expr
 		{
 			$$ = &cspTree{tok: cspChoice, left: $1, right: $3}
