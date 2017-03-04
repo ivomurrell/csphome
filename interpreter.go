@@ -315,7 +315,7 @@ func checkDeterministicChoice(root *cspTree) error {
 		case cspEvent:
 			left = root.left.ident
 		case cspProcessTok:
-			left = processDefinitions[root.left.process].ident
+			left = processDefinitions[root.left.ident].ident
 		default:
 			log.Fatal("Do not currently support multiple choice branches.")
 		}
@@ -323,7 +323,7 @@ func checkDeterministicChoice(root *cspTree) error {
 		case cspEvent:
 			right = root.right.ident
 		case cspProcessTok:
-			right = processDefinitions[root.right.process].ident
+			right = processDefinitions[root.right.ident].ident
 		default:
 			log.Fatal("Do not currently support multiple choice branches.")
 		}
