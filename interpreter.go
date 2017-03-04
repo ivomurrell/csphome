@@ -257,7 +257,7 @@ func errorPass() error {
 		}
 	}
 
-	return nil
+	return errorPassProcess("", rootNode)
 }
 
 func errorPassProcess(name string, root *cspTree) (err error) {
