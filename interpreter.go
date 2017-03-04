@@ -149,6 +149,9 @@ func interpret_tree(
 
 			if node.right == nil {
 				log.Printf("%s: Process ran out of events.", node.process)
+
+				parent <- true
+				<-parent
 				parent <- false
 				break
 			}
