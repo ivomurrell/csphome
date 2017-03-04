@@ -111,7 +111,6 @@ func interpret_tree(
 		go interpret_tree(node.right, false, right, &rightMap)
 
 		parallelMonitor(left, right, parent)
-		parent <- false
 	case cspGenChoice, cspOr:
 		if node.tok == cspOr || node.left.ident == node.right.ident {
 			if rand.Intn(2) == 1 {
@@ -210,16 +209,15 @@ func parallelMonitor(left chan bool, right chan bool, parent chan bool) {
 	} else {
 		c = left
 	}
-
-	parent <- true
-	<-parent
+	parent <- running
 
 	for running {
+		<-parent
+
 		c <- true
 		running = <-c
 
-		parent <- true
-		<-parent
+		parent <- running
 	}
 }
 
