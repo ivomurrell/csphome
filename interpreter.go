@@ -232,6 +232,8 @@ func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
 		} else {
 			return nil, []string{root.ident}
 		}
+	case cspProcessTok:
+		return choiceTraverse(target, processDefinitions[root.ident])
 	case cspChoice:
 		result, leftEvents := choiceTraverse(target, root.left)
 		if result != nil {
