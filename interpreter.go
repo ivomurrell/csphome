@@ -111,16 +111,12 @@ func interpret_tree(
 		go interpret_tree(node.right, false, right, &rightMap)
 
 		parallelMonitor(left, right, parent)
-	case cspGenChoice, cspOr:
-		if node.tok == cspOr || node.left.ident == node.right.ident {
-			if rand.Intn(2) == 1 {
-				interpret_tree(node.right, false, parent, mappings)
-			} else {
-				interpret_tree(node.left, false, parent, mappings)
-			}
-			break
+	case cspOr:
+		if rand.Intn(2) == 1 {
+			interpret_tree(node.right, false, parent, mappings)
+		} else {
+			interpret_tree(node.left, false, parent, mappings)
 		}
-		fallthrough
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpret_tree(branch, false, parent, mappings)
@@ -273,6 +269,11 @@ func errorPassProcess(name string, root *cspTree) (err error) {
 		return
 	}
 
+	err = simplifyGenChoice(root)
+	if err != nil {
+		return
+	}
+
 	if root.left != nil {
 		err = errorPassProcess(name, root.left)
 		if err != nil {
@@ -328,6 +329,34 @@ func checkDeterministicChoice(root *cspTree) error {
 			errFmt := "Syntax error: Cannot have a choice " +
 				"between identical events (%s + %s)."
 			return fmt.Errorf(errFmt, left, right)
+		}
+	}
+
+	return nil
+}
+
+func simplifyGenChoice(root *cspTree) error {
+	if root.tok == cspGenChoice {
+		var left, right string
+
+		switch root.left.tok {
+		case cspEvent:
+			left = root.left.ident
+		case cspProcessTok:
+			left = processDefinitions[root.left.ident].ident
+		}
+
+		switch root.right.tok {
+		case cspEvent:
+			right = root.right.ident
+		case cspProcessTok:
+			right = processDefinitions[root.right.ident].ident
+		}
+
+		if left == right {
+			root.tok = cspOr
+		} else {
+			root.tok = cspChoice
 		}
 	}
 
