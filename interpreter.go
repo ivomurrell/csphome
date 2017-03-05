@@ -178,6 +178,9 @@ func interpret_tree(
 
 		parent <- true
 		interpret_tree(node.right, true, parent, mappings)
+	default:
+		log.Printf("Unrecognised token %v.", node.tok)
+		parent <- false
 	}
 }
 
