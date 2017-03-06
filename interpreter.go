@@ -251,6 +251,15 @@ func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
 
 		result, rightEvents := choiceTraverse(target, root.right)
 		return result, append(leftEvents, rightEvents...)
+	case cspGenChoice:
+		results, events := genChoiceTraverse(target, root)
+		if len(results) > 1 {
+			log.Print("Cannot mix a choice with a general choice degenerated " +
+				"to nondeterminism.")
+			return nil, nil
+		} else {
+			return results[0], events
+		}
 	default:
 		log.Printf("Mixing a choice operator with a %v is not supported",
 			root.tok)
@@ -268,6 +277,9 @@ func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
 		}
 	case cspProcessTok:
 		return genChoiceTraverse(target, processDefinitions[root.ident])
+	case cspChoice:
+		branch, events := choiceTraverse(target, root)
+		return []*cspTree{branch}, events
 	case cspGenChoice:
 		leftBranches, leftEvents := genChoiceTraverse(target, root.left)
 		rightBranches, rightEvents := genChoiceTraverse(target, root.right)
