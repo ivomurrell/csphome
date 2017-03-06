@@ -308,9 +308,11 @@ func errorPass() error {
 func errorPassProcess(name string, root *cspTree) (err error) {
 	brandProcessEvents(name, root)
 
-	err = checkAlphabet(root)
-	if err != nil {
-		return
+	if name != "" {
+		err = checkAlphabet(root)
+		if err != nil {
+			return
+		}
 	}
 
 	err = checkDeterministicChoice(root)
