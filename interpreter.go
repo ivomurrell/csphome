@@ -126,6 +126,16 @@ func interpret_tree(
 			log.Printf(fmt, node.process, trace, events)
 			parent <- false
 		}
+	case cspGenChoice:
+		if branches, events := genChoiceTraverse(trace, node); branches != nil {
+			bIndex := rand.Intn(len(branches))
+			interpret_tree(branches[bIndex], false, parent, mappings)
+		} else {
+			fmt := "%s: Deadlock: environment (%s) " +
+				"matches none of the general choice events %v."
+			log.Printf(fmt, node.process, trace, events)
+			parent <- false
+		}
 	case cspEvent:
 		if node.process != "" && !inAlphabet(node.process, trace) {
 			parent <- true
@@ -248,6 +258,30 @@ func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
 	}
 }
 
+func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
+	switch root.tok {
+	case cspEvent:
+		if root.ident == target {
+			return []*cspTree{root}, []string{root.ident}
+		} else {
+			return nil, []string{root.ident}
+		}
+	case cspProcessTok:
+		return genChoiceTraverse(target, processDefinitions[root.ident])
+	case cspGenChoice:
+		leftBranches, leftEvents := genChoiceTraverse(target, root.left)
+		rightBranches, rightEvents := genChoiceTraverse(target, root.right)
+
+		return append(leftBranches, rightBranches...),
+			append(leftEvents, rightEvents...)
+	default:
+		fmt := "Mixing a general choice operator with " +
+			"a %v is not supported"
+		log.Printf(fmt, root.tok)
+		return nil, nil
+	}
+}
+
 func errorPass() error {
 	for ident, p := range processDefinitions {
 		err := errorPassProcess(ident, p)
@@ -268,11 +302,6 @@ func errorPassProcess(name string, root *cspTree) (err error) {
 	}
 
 	err = checkDeterministicChoice(root)
-	if err != nil {
-		return
-	}
-
-	err = simplifyGenChoice(root)
 	if err != nil {
 		return
 	}
@@ -332,34 +361,6 @@ func checkDeterministicChoice(root *cspTree) error {
 			errFmt := "Syntax error: Cannot have a choice " +
 				"between identical events (%s + %s)."
 			return fmt.Errorf(errFmt, left, right)
-		}
-	}
-
-	return nil
-}
-
-func simplifyGenChoice(root *cspTree) error {
-	if root.tok == cspGenChoice {
-		var left, right string
-
-		switch root.left.tok {
-		case cspEvent:
-			left = root.left.ident
-		case cspProcessTok:
-			left = processDefinitions[root.left.ident].ident
-		}
-
-		switch root.right.tok {
-		case cspEvent:
-			right = root.right.ident
-		case cspProcessTok:
-			right = processDefinitions[root.right.ident].ident
-		}
-
-		if left == right {
-			root.tok = cspOr
-		} else {
-			root.tok = cspChoice
 		}
 	}
 
