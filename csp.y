@@ -198,6 +198,9 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 			}
 		}
 		lvalue.ident = ident
+	} else if t == scanner.Int {
+		token = cspEvent
+		lvalue.ident = x.s.TokenText()
 	} else {
 		switch t {
 		case '-':
