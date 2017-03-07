@@ -49,8 +49,8 @@ var useFormalCommunication *bool
 %token <ident> cspEvent cspProcessTok
 %token cspLet cspAlphabetTok cspTraceDef cspChannelDef
 %left cspParallel
-%left cspGenChoice cspOr
 %left cspChoice
+%left cspGenChoice cspOr
 %right cspPrefix
 
 %%
