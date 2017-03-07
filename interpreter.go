@@ -350,6 +350,15 @@ func checkAlphabet(root *cspTree) error {
 			alphabet := alphabets[root.process]
 			alphabets[root.process] = append(alphabet, variable)
 		}
+
+		channel := root.ident[:i-1]
+		for _, cEvent := range channelAlphas[channel] {
+			if !inAlphabet(root.process, cEvent) {
+				errFmt := "Syntax error: %s's alphabet is not a superset of " +
+					"channel %s's alphabet."
+				return fmt.Errorf(errFmt, root.process, channel)
+			}
+		}
 	}
 
 	return nil
