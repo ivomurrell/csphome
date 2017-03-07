@@ -173,36 +173,37 @@ func (x *cspLex) Lex(lvalue *cspSymType) (token int) {
 	if t := x.peekNextSymbol(); t == 'α' {
 		x.s.Next()
 		token = cspAlphabetTok
-	} else if t = x.s.Scan(); t == scanner.Ident {
-		ident := x.s.TokenText()
-		switch ident {
-		case "let":
-			token = cspLet
-		case "tracedef":
-			token = cspTraceDef
-		case "alphadef":
-			token = cspAlphabetTok
-		case "chandef", "channeldef":
-			token = cspChannelDef
-		default:
-			r, _ := utf8.DecodeRuneInString(ident)
-			if unicode.IsUpper(r) {
-				token = cspProcessTok
-			} else {
-				token = cspEvent
-				if x.peekNextSymbol() == '.' {
-					x.s.Scan()
-					x.s.Scan()
-					ident = ident + "." + x.s.TokenText()
+	} else {
+		t = x.s.Scan()
+		switch t {
+		case scanner.Ident: 
+			ident := x.s.TokenText()
+			switch ident {
+			case "let":
+				token = cspLet
+			case "tracedef":
+				token = cspTraceDef
+			case "alphadef":
+				token = cspAlphabetTok
+			case "chandef", "channeldef":
+				token = cspChannelDef
+			default:
+				r, _ := utf8.DecodeRuneInString(ident)
+				if unicode.IsUpper(r) {
+					token = cspProcessTok
+				} else {
+					token = cspEvent
+					if x.peekNextSymbol() == '.' {
+						x.s.Scan()
+						x.s.Scan()
+						ident = ident + "." + x.s.TokenText()
+					}
 				}
 			}
-		}
-		lvalue.ident = ident
-	} else if t == scanner.Int {
-		token = cspEvent
-		lvalue.ident = x.s.TokenText()
-	} else {
-		switch t {
+			lvalue.ident = ident
+		case scanner.Int:
+			token = cspEvent
+			lvalue.ident = x.s.TokenText()
 		case '-':
 			if x.s.Peek() != '>' {
 				log.Printf("Unrecognised character: -")
