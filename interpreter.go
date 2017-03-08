@@ -120,6 +120,9 @@ func interpret_tree(
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpret_tree(branch, false, parent, mappings)
+		} else if node.process != "" && !inAlphabet(node.process, trace) {
+			parent <- true
+			interpret_tree(node, true, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
@@ -130,6 +133,9 @@ func interpret_tree(
 		if branches, events := genChoiceTraverse(trace, node); branches != nil {
 			bIndex := rand.Intn(len(branches))
 			interpret_tree(branches[bIndex], false, parent, mappings)
+		} else if node.process != "" && !inAlphabet(node.process, trace) {
+			parent <- true
+			interpret_tree(node, true, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the general choice events %v."
