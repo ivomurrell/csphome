@@ -16,6 +16,12 @@ import (
 
 type cspValueMappings map[string]string
 
+type cspChannel struct {
+	blockedEvents []string
+	needToBlock   bool
+	c             chan bool
+}
+
 var traceCount int = 0
 
 func init() {
@@ -56,14 +62,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else if rootNode != nil {
-		dummy := make(chan bool)
+		dummy := cspChannel{nil, true, make(chan bool)}
 		rootMap := make(cspValueMappings)
-		go interpret_tree(rootNode, true, dummy, &rootMap)
+		go interpret_tree(rootNode, &dummy, &rootMap)
 
 		running := true
 		for running {
-			dummy <- false
-			running = <-dummy
+			dummy.c <- false
+			running = <-dummy.c
 			traceCount++
 		}
 
@@ -86,12 +92,12 @@ func print_tree(node *cspTree) {
 
 func interpret_tree(
 	node *cspTree,
-	needBarrier bool,
-	parent chan bool,
+	parent *cspChannel,
 	mappings *cspValueMappings) {
 
-	if needBarrier {
-		<-parent
+	if parent.needToBlock {
+		<-parent.c
+		parent.needToBlock = false
 	}
 
 	if len(rootTrace) <= traceCount {
@@ -102,27 +108,27 @@ func interpret_tree(
 
 	switch node.tok {
 	case cspParallel:
-		left := make(chan bool)
-		right := make(chan bool)
+		left := &cspChannel{nil, false, make(chan bool)}
+		right := &cspChannel{nil, false, make(chan bool)}
 		leftMap := *mappings
 		rightMap := *mappings
 
-		go interpret_tree(node.left, false, left, &leftMap)
-		go interpret_tree(node.right, false, right, &rightMap)
+		go interpret_tree(node.left, left, &leftMap)
+		go interpret_tree(node.right, right, &rightMap)
 
 		parallelMonitor(left, right, parent)
 	case cspOr:
 		if rand.Intn(2) == 1 {
-			interpret_tree(node.right, false, parent, mappings)
+			interpret_tree(node.right, parent, mappings)
 		} else {
-			interpret_tree(node.left, false, parent, mappings)
+			interpret_tree(node.left, parent, mappings)
 		}
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
-			interpret_tree(branch, false, parent, mappings)
+			interpret_tree(branch, parent, mappings)
 		} else if !inAlphabet(node.process, trace) {
 			consumeEvent(parent)
-			interpret_tree(node, true, parent, mappings)
+			interpret_tree(node, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
@@ -132,10 +138,10 @@ func interpret_tree(
 	case cspGenChoice:
 		if branches, events := genChoiceTraverse(trace, node); branches != nil {
 			bIndex := rand.Intn(len(branches))
-			interpret_tree(branches[bIndex], false, parent, mappings)
+			interpret_tree(branches[bIndex], parent, mappings)
 		} else if !inAlphabet(node.process, trace) {
 			consumeEvent(parent)
-			interpret_tree(node, true, parent, mappings)
+			interpret_tree(node, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the general choice events %v."
@@ -145,7 +151,7 @@ func interpret_tree(
 	case cspEvent:
 		if !inAlphabet(node.process, trace) {
 			consumeEvent(parent)
-			interpret_tree(node, true, parent, mappings)
+			interpret_tree(node, parent, mappings)
 		} else {
 			if trace != node.ident {
 				mappedEvent := (*mappings)[node.ident]
@@ -163,20 +169,20 @@ func interpret_tree(
 				log.Printf("%s: Process ran out of events.", node.process)
 
 				if parent != nil {
-					parent <- true
-					<-parent
-					parent <- false
+					parent.c <- true
+					<-parent.c
+					parent.c <- false
 				}
 				break
 			}
 
 			consumeEvent(parent)
-			interpret_tree(node.right, true, parent, mappings)
+			interpret_tree(node.right, parent, mappings)
 		}
 	case cspProcessTok:
 		p, ok := processDefinitions[node.ident]
 		if ok {
-			interpret_tree(p, false, parent, mappings)
+			interpret_tree(p, parent, mappings)
 		} else {
 			log.Printf("%s: Process %s is not defined.",
 				node.process, node.ident)
@@ -188,68 +194,69 @@ func interpret_tree(
 		channels[args[0]] <- args[1]
 
 		consumeEvent(parent)
-		interpret_tree(node.right, true, parent, mappings)
+		interpret_tree(node.right, parent, mappings)
 	case '?':
 		args := strings.Split(node.ident, ".")
 		log.Print("Listening on ", args[0])
 		(*mappings)[args[1]] = <-channels[args[0]]
 
 		consumeEvent(parent)
-		interpret_tree(node.right, true, parent, mappings)
+		interpret_tree(node.right, parent, mappings)
 	default:
 		log.Printf("Unrecognised token %v.", node.tok)
 		terminateProcess(parent)
 	}
 }
 
-func consumeEvent(parent chan bool) {
+func consumeEvent(parent *cspChannel) {
 	if parent != nil {
-		parent <- true
+		parent.c <- true
+		parent.needToBlock = true
 	}
 }
 
-func terminateProcess(parent chan bool) {
+func terminateProcess(parent *cspChannel) {
 	if parent != nil {
-		parent <- false
+		parent.c <- false
 	}
 }
 
-func parallelMonitor(left chan bool, right chan bool, parent chan bool) {
+func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
 	var isLeftDone bool
 	for {
-		if running := <-left; !running {
+		if running := <-left.c; !running {
 			isLeftDone = true
 			break
 		}
-		if running := <-right; !running {
+		if running := <-right.c; !running {
 			isLeftDone = false
 			break
 		}
 
-		parent <- true
-		<-parent
+		parent.c <- true
+		<-parent.c
 
-		left <- true
-		right <- true
+		left.c <- true
+		right.c <- true
 	}
 
 	var c chan bool
 	running := true
 	if isLeftDone {
-		c = right
+		c = right.c
 		running = <-c
 	} else {
-		c = left
+		c = left.c
 	}
-	parent <- running
+	parent.c <- running
 
 	for running {
-		<-parent
+		<-parent.c
 
 		c <- true
 		running = <-c
 
-		parent <- running
+		parent.c <- running
 	}
 }
 
