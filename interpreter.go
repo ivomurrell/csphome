@@ -120,7 +120,7 @@ func interpret_tree(
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpret_tree(branch, false, parent, mappings)
-		} else if node.process != "" && !inAlphabet(node.process, trace) {
+		} else if !inAlphabet(node.process, trace) {
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
 		} else {
@@ -133,7 +133,7 @@ func interpret_tree(
 		if branches, events := genChoiceTraverse(trace, node); branches != nil {
 			bIndex := rand.Intn(len(branches))
 			interpret_tree(branches[bIndex], false, parent, mappings)
-		} else if node.process != "" && !inAlphabet(node.process, trace) {
+		} else if !inAlphabet(node.process, trace) {
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
 		} else {
@@ -143,7 +143,7 @@ func interpret_tree(
 			parent <- false
 		}
 	case cspEvent:
-		if node.process != "" && !inAlphabet(node.process, trace) {
+		if !inAlphabet(node.process, trace) {
 			parent <- true
 			interpret_tree(node, true, parent, mappings)
 		} else {
@@ -314,11 +314,9 @@ func errorPass() error {
 func errorPassProcess(name string, root *cspTree) (err error) {
 	brandProcessEvents(name, root)
 
-	if name != "" {
-		err = checkAlphabet(root)
-		if err != nil {
-			return
-		}
+	err = checkAlphabet(root)
+	if err != nil {
+		return
 	}
 
 	err = checkDeterministicChoice(root)
@@ -396,15 +394,20 @@ func checkDeterministicChoice(root *cspTree) error {
 	return nil
 }
 
-func inAlphabet(process string, event string) (found bool) {
-	alphabet := alphabets[process]
+func inAlphabet(process string, event string) bool {
+	if process == "" {
+		return true
+	} else {
+		alphabet := alphabets[process]
+		found := false
 
-	for _, a := range alphabet {
-		if a == event {
-			found = true
-			break
+		for _, a := range alphabet {
+			if a == event {
+				found = true
+				break
+			}
 		}
-	}
 
-	return
+		return found
+	}
 }
