@@ -16,11 +16,11 @@ let Phil3 = sit3->fork3up3->fork4up3->fork3down3->fork4down3->stand3->Phil3
 let Phil4 = sit4->fork4up4->fork5up4->fork4down4->fork5down4->stand4->Phil4
 let Phil5 = sit5->fork5up5->fork1up5->fork5down5->fork1down5->stand5->Phil5
 
-let Fork1 = fork1up1->fork1down1->Fork1
-let Fork2 = fork2up2->fork2down2->Fork2
-let Fork3 = fork3up3->fork3down3->Fork3
-let Fork4 = fork4up4->fork4down4->Fork4
-let Fork5 = fork5up5->fork5down5->Fork5
+let Fork1 = (fork1up1->fork1down1->Fork1)|(fork1up2->fork1down2->Fork1)
+let Fork2 = (fork2up2->fork2down2->Fork2)|(fork2up3->fork2down3->Fork2)
+let Fork3 = (fork3up3->fork3down3->Fork3)|(fork3up4->fork3down4->Fork3)
+let Fork4 = (fork4up4->fork4down4->Fork4)|(fork4up5->fork4down5->Fork4)
+let Fork5 = (fork5up5->fork5down5->Fork5)|(fork5up1->fork5down1->Fork5)
 
 let Philosophers = Phil1||Phil2||Phil3||Phil4||Phil5
 let Forks = Fork1||Fork2||Fork3||Fork4||Fork5
