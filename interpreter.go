@@ -95,7 +95,7 @@ func interpret_tree(
 	}
 
 	if len(rootTrace) <= traceCount {
-		parent <- false
+		terminateProcess(parent)
 		return
 	}
 	trace := rootTrace[traceCount]
@@ -121,30 +121,30 @@ func interpret_tree(
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpret_tree(branch, false, parent, mappings)
 		} else if !inAlphabet(node.process, trace) {
-			parent <- true
+			consumeEvent(parent)
 			interpret_tree(node, true, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
 			log.Printf(fmt, node.process, trace, events)
-			parent <- false
+			terminateProcess(parent)
 		}
 	case cspGenChoice:
 		if branches, events := genChoiceTraverse(trace, node); branches != nil {
 			bIndex := rand.Intn(len(branches))
 			interpret_tree(branches[bIndex], false, parent, mappings)
 		} else if !inAlphabet(node.process, trace) {
-			parent <- true
+			consumeEvent(parent)
 			interpret_tree(node, true, parent, mappings)
 		} else {
 			fmt := "%s: Deadlock: environment (%s) " +
 				"matches none of the general choice events %v."
 			log.Printf(fmt, node.process, trace, events)
-			parent <- false
+			terminateProcess(parent)
 		}
 	case cspEvent:
 		if !inAlphabet(node.process, trace) {
-			parent <- true
+			consumeEvent(parent)
 			interpret_tree(node, true, parent, mappings)
 		} else {
 			if trace != node.ident {
@@ -154,7 +154,7 @@ func interpret_tree(
 					fmt := "%s: Deadlock: environment (%s) " +
 						"does not match prefixed event (%s)"
 					log.Printf(fmt, node.process, trace, node.ident)
-					parent <- false
+					terminateProcess(parent)
 					break
 				}
 			}
@@ -162,13 +162,15 @@ func interpret_tree(
 			if node.right == nil {
 				log.Printf("%s: Process ran out of events.", node.process)
 
-				parent <- true
-				<-parent
-				parent <- false
+				if parent != nil {
+					parent <- true
+					<-parent
+					parent <- false
+				}
 				break
 			}
 
-			parent <- true
+			consumeEvent(parent)
 			interpret_tree(node.right, true, parent, mappings)
 		}
 	case cspProcessTok:
@@ -178,24 +180,36 @@ func interpret_tree(
 		} else {
 			log.Printf("%s: Process %s is not defined.",
 				node.process, node.ident)
-			parent <- false
+			terminateProcess(parent)
 		}
 	case '!':
 		args := strings.Split(trace, ".")
 		log.Print("Outputting on ", args[0])
 		channels[args[0]] <- args[1]
 
-		parent <- true
+		consumeEvent(parent)
 		interpret_tree(node.right, true, parent, mappings)
 	case '?':
 		args := strings.Split(node.ident, ".")
 		log.Print("Listening on ", args[0])
 		(*mappings)[args[1]] = <-channels[args[0]]
 
-		parent <- true
+		consumeEvent(parent)
 		interpret_tree(node.right, true, parent, mappings)
 	default:
 		log.Printf("Unrecognised token %v.", node.tok)
+		terminateProcess(parent)
+	}
+}
+
+func consumeEvent(parent chan bool) {
+	if parent != nil {
+		parent <- true
+	}
+}
+
+func terminateProcess(parent chan bool) {
+	if parent != nil {
 		parent <- false
 	}
 }
