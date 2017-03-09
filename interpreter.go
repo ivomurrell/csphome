@@ -106,8 +106,10 @@ func interpretTree(
 
 	switch node.tok {
 	case cspParallel:
-		left := &cspChannel{nil, false, parent.traceCount, make(chan bool)}
-		right := &cspChannel{nil, false, parent.traceCount, make(chan bool)}
+		blockedEvents := getConjunctEvents(node)
+		left := &cspChannel{blockedEvents, false, parent.traceCount, make(chan bool)}
+		right := &cspChannel{blockedEvents, false, parent.traceCount, make(chan bool)}
+
 		leftMap := *mappings
 		rightMap := *mappings
 
@@ -266,6 +268,65 @@ func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
 
 		parent.c <- running
 	}
+
+func getConjunctEvents(root *cspTree) (conjunct []string) {
+	lEvents := gatherEvents(root.left)
+	rEvents := gatherEvents(root.right)
+
+OuterConjuctLoop:
+	for _, lEvent := range lEvents {
+		for _, rEvent := range rEvents {
+			if lEvent == rEvent {
+				conjunct = append(conjunct, lEvent)
+				continue OuterConjuctLoop
+			}
+		}
+	}
+
+	return
+}
+
+func gatherEvents(root *cspTree) []string {
+	switch root.tok {
+	case cspEvent:
+		events := gatherEvents(root.right)
+		for _, event := range events {
+			if root.ident == event {
+				return events
+			}
+		}
+		return append(events, root.ident)
+	case cspProcessTok:
+		return alphabets[root.ident]
+	case cspChoice, cspGenChoice, cspOr, cspParallel:
+		lEvents := gatherEvents(root.left)
+		rEvents := gatherEvents(root.right)
+
+		var events []string
+	LeftUnionLoop:
+		for i, lEvent := range lEvents {
+			for _, rEvent := range rEvents {
+				if lEvent == rEvent {
+					continue LeftUnionLoop
+				}
+			}
+			events = append(events, lEvent)
+			lEvents[i] = ""
+		}
+	RightUnionLoop:
+		for _, rEvent := range rEvents {
+			for _, lEvent := range lEvents {
+				if lEvent == rEvent {
+					continue RightUnionLoop
+				}
+			}
+			events = append(events, rEvent)
+		}
+
+		return events
+	}
+
+	return nil
 }
 
 func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
