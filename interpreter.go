@@ -19,10 +19,9 @@ type cspValueMappings map[string]string
 type cspChannel struct {
 	blockedEvents []string
 	needToBlock   bool
+	traceCount    int
 	c             chan bool
 }
-
-var traceCount int = 0
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -62,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else if rootNode != nil {
-		dummy := cspChannel{nil, true, make(chan bool)}
+		dummy := cspChannel{nil, true, 0, make(chan bool)}
 		rootMap := make(cspValueMappings)
 		go interpretTree(rootNode, &dummy, &rootMap)
 
@@ -70,14 +69,13 @@ func main() {
 		for running {
 			dummy.c <- false
 			running = <-dummy.c
-			traceCount++
 		}
 
-		if len(rootTrace) < traceCount {
+		if len(rootTrace) < dummy.traceCount {
 			log.Print("Environment ran out of events.")
 		} else {
 			log.Print("Unexecuted environment events: ",
-				rootTrace[traceCount-1:])
+				rootTrace[dummy.traceCount-1:])
 		}
 	}
 }
@@ -100,16 +98,16 @@ func interpretTree(
 		parent.needToBlock = false
 	}
 
-	if len(rootTrace) <= traceCount {
+	if len(rootTrace) <= parent.traceCount {
 		terminateProcess(parent)
 		return
 	}
-	trace := rootTrace[traceCount]
+	trace := rootTrace[parent.traceCount]
 
 	switch node.tok {
 	case cspParallel:
-		left := &cspChannel{nil, false, make(chan bool)}
-		right := &cspChannel{nil, false, make(chan bool)}
+		left := &cspChannel{nil, false, parent.traceCount, make(chan bool)}
+		right := &cspChannel{nil, false, parent.traceCount, make(chan bool)}
 		leftMap := *mappings
 		rightMap := *mappings
 
@@ -210,8 +208,18 @@ func interpretTree(
 
 func consumeEvent(parent *cspChannel) {
 	if parent != nil {
-		parent.c <- true
-		parent.needToBlock = true
+		event := rootTrace[parent.traceCount]
+
+		for _, blockedEvent := range parent.blockedEvents {
+			if event == blockedEvent {
+				parent.c <- true
+				parent.needToBlock = true
+
+				break
+			}
+		}
+
+		parent.traceCount++
 	}
 }
 
