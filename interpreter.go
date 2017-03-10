@@ -107,8 +107,10 @@ func interpretTree(
 	switch node.tok {
 	case cspParallel:
 		blockedEvents := getConjunctEvents(node)
-		left := &cspChannel{blockedEvents, false, parent.traceCount, make(chan bool)}
-		right := &cspChannel{blockedEvents, false, parent.traceCount, make(chan bool)}
+		left := &cspChannel{
+			blockedEvents, false, parent.traceCount, make(chan bool)}
+		right := &cspChannel{
+			blockedEvents, false, parent.traceCount, make(chan bool)}
 
 		leftMap := *mappings
 		rightMap := *mappings
