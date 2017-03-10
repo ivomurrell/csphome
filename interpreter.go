@@ -274,13 +274,24 @@ func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
 func getConjunctEvents(root *cspTree) (conjunct []string) {
 	lEvents := gatherEvents(root.left)
 	rEvents := gatherEvents(root.right)
+	sort.Strings(lEvents)
+	sort.Strings(rEvents)
 
+	i := 0
 OuterConjuctLoop:
 	for _, lEvent := range lEvents {
-		for _, rEvent := range rEvents {
-			if lEvent == rEvent {
-				conjunct = append(conjunct, lEvent)
+		for {
+			if i >= len(rEvents) {
+				break OuterConjuctLoop
+			}
+			rEvent := rEvents[i]
+			if lEvent < rEvent {
 				continue OuterConjuctLoop
+			} else {
+				if lEvent == rEvent {
+					conjunct = append(conjunct, lEvent)
+				}
+				i++
 			}
 		}
 	}
