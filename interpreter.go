@@ -271,6 +271,8 @@ func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
 		parent.c <- running
 	}
 
+}
+
 func getConjunctEvents(root *cspTree) (conjunct []string) {
 	lEvents := gatherEvents(root.left)
 	rEvents := gatherEvents(root.right)
