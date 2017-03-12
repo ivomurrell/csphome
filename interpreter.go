@@ -253,25 +253,31 @@ func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
 		right.c <- true
 	}
 
-	var c chan bool
+	var ch *cspChannel
 	running := true
 	if isLeftDone {
-		c = right.c
-		running = <-c
+		ch = right
+		running = <-ch.c
 	} else {
-		c = left.c
+		ch = left
 	}
 	parent.c <- running
 
 	for running {
 		<-parent.c
 
-		c <- true
-		running = <-c
+		ch.c <- true
+		running = <-ch.c
 
 		parent.c <- running
 	}
 
+	if left.traceCount >= parent.traceCount {
+		parent.traceCount = left.traceCount + 1
+	}
+	if right.traceCount >= parent.traceCount {
+		parent.traceCount = right.traceCount + 1
+	}
 }
 
 func getConjunctEvents(root *cspTree) (conjunct []string) {
