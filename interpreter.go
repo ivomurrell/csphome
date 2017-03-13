@@ -323,26 +323,33 @@ func gatherEvents(root *cspTree) []string {
 	case cspChoice, cspGenChoice, cspOr, cspParallel:
 		lEvents := gatherEvents(root.left)
 		rEvents := gatherEvents(root.right)
+		sort.Strings(lEvents)
+		sort.Strings(rEvents)
 
 		var events []string
-	LeftUnionLoop:
-		for i, lEvent := range lEvents {
-			for _, rEvent := range rEvents {
-				if lEvent == rEvent {
-					continue LeftUnionLoop
+		ri := 0
+	OuterMergeLoop:
+		for li, lEvent := range lEvents {
+			for {
+				if len(rEvents) <= ri {
+					events = append(events, lEvents[li:]...)
+					break OuterMergeLoop
+				}
+				if lEvent == rEvents[ri] {
+					events = append(events, lEvent)
+					ri++
+					continue OuterMergeLoop
+				} else if lEvent < rEvents[ri] {
+					events = append(events, lEvent)
+					continue OuterMergeLoop
+				} else {
+					events = append(events, rEvents[ri])
+					ri++
 				}
 			}
-			events = append(events, lEvent)
-			lEvents[i] = ""
 		}
-	RightUnionLoop:
-		for _, rEvent := range rEvents {
-			for _, lEvent := range lEvents {
-				if lEvent == rEvent {
-					continue RightUnionLoop
-				}
-			}
-			events = append(events, rEvent)
+		if len(rEvents) > ri {
+			events = append(events, rEvents[ri:]...)
 		}
 
 		return events
