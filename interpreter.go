@@ -107,7 +107,13 @@ func interpretTree(
 
 	switch node.tok {
 	case cspParallel:
-		blockedEvents := getConjunctEvents(node)
+		var blockedEvents []string
+		if parent.blockedEvents != nil {
+			blockedEvents = parent.blockedEvents
+		} else {
+			blockedEvents = getConjunctEvents(node)
+		}
+
 		left := &cspChannel{
 			blockedEvents, false, parent.traceCount, make(chan bool)}
 		right := &cspChannel{
