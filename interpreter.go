@@ -467,12 +467,16 @@ func brandProcessEvents(name string, root *cspTree) {
 }
 
 func checkAlphabet(root *cspTree) error {
-	if root.tok == cspEvent {
+	switch root.tok {
+	case cspEvent:
 		if !inAlphabet(root.process, root.ident) {
 			errFmt := "Syntax error: Event %s not in %s's alphabet."
 			return fmt.Errorf(errFmt, root.ident, root.process)
 		}
-	} else if root.tok == '?' {
+	case cspProcessTok:
+		alphabets[root.process] =
+			append(alphabets[root.process], alphabets[root.ident]...)
+	case '?':
 		i := strings.LastIndex(root.ident, ".") + 1
 		variable := root.ident[i:]
 		if !inAlphabet(root.process, variable) {
