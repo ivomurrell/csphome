@@ -246,7 +246,7 @@ func terminateProcess(parent *cspChannel) {
 	}
 }
 
-func parallelMonitor(left *cspChannel, right *cspChannel, parent *cspChannel) {
+func parallelMonitor(left, right, parent *cspChannel) {
 	var isLeftDone bool
 	for {
 		if running := <-left.c; !running {
@@ -529,7 +529,7 @@ func checkDeterministicChoice(root *cspTree) error {
 	return nil
 }
 
-func inAlphabet(process string, event string) bool {
+func inAlphabet(process, event string) bool {
 	if process == "" {
 		return true
 	} else {
