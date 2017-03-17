@@ -64,7 +64,7 @@ func main() {
 	} else if rootNode != nil {
 		dummy := cspChannel{nil, true, 0, make(chan bool)}
 		rootMap := make(cspValueMappings)
-		go interpretTree(rootNode, &dummy, &rootMap)
+		go interpretTree(rootNode, &dummy, rootMap)
 
 		running := true
 		for running {
@@ -92,7 +92,7 @@ func printTree(node *cspTree) {
 func interpretTree(
 	node *cspTree,
 	parent *cspChannel,
-	mappings *cspValueMappings) {
+	mappings cspValueMappings) {
 
 	if parent.needToBlock {
 		<-parent.c
@@ -119,11 +119,17 @@ func interpretTree(
 		right := &cspChannel{
 			blockedEvents, false, parent.traceCount, make(chan bool)}
 
-		leftMap := *mappings
-		rightMap := *mappings
+		leftMap := make(cspValueMappings)
+		rightMap := make(cspValueMappings)
+		for k, v := range mappings {
+			leftMap[k] = v
+		}
+		for k, v := range mappings {
+			rightMap[k] = v
+		}
 
-		go interpretTree(node.left, left, &leftMap)
-		go interpretTree(node.right, right, &rightMap)
+		go interpretTree(node.left, left, leftMap)
+		go interpretTree(node.right, right, rightMap)
 
 		parallelMonitor(left, right, parent)
 	case cspOr:
@@ -163,7 +169,7 @@ func interpretTree(
 			interpretTree(node, parent, mappings)
 		} else {
 			if trace != node.ident {
-				mappedEvent := (*mappings)[node.ident]
+				mappedEvent := mappings[node.ident]
 
 				if trace != mappedEvent {
 					fmt := "%s: Deadlock: environment (%s) " +
@@ -207,7 +213,7 @@ func interpretTree(
 	case '?':
 		args := strings.Split(node.ident, ".")
 		log.Print("Listening on ", args[0])
-		(*mappings)[args[1]] = <-channels[args[0]]
+		mappings[args[1]] = <-channels[args[0]]
 
 		consumeEvent(parent)
 		interpretTree(node.right, parent, mappings)
