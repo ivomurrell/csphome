@@ -14,8 +14,8 @@ type cspTree struct {
 	tok int
 	ident string
 	process string
-	left *cspTree
-	right *cspTree
+	branches []*cspTree
+	count int
 }
 
 type cspEventList []string
@@ -66,19 +66,23 @@ Expr:
 	| '(' Expr ')' {$$ = $2}
 	| Expr cspChoice Expr
 		{
-			$$ = &cspTree{tok: cspChoice, left: $1, right: $3}
+			branches := []*cspTree{$1, $3}
+			$$ = &cspTree{tok: cspChoice, branches: branches, count: 2}
 		}
 	| Expr cspGenChoice Expr
 		{
-			$$ = &cspTree{tok: cspGenChoice, left: $1, right: $3}
+			branches := []*cspTree{$1, $3}
+			$$ = &cspTree{tok: cspGenChoice, branches: branches, count: 2}
 		}
 	| Expr cspOr Expr
 		{
-			$$ = &cspTree{tok: cspOr, left: $1, right: $3}
+			branches := []*cspTree{$1, $3}
+			$$ = &cspTree{tok: cspOr, branches: branches, count: 2}
 		}
 	| Expr cspParallel Expr
 		{
-			$$ = &cspTree{tok: cspParallel, left: $1, right: $3}
+			branches := []*cspTree{$1, $3}
+			$$ = &cspTree{tok: cspParallel, branches: branches, count: 2}
 		}
 
 Process:
@@ -86,40 +90,44 @@ Process:
 	| cspProcessTok {$$ = &cspTree{tok: cspProcessTok, ident: $1}}
 	| Event cspPrefix Process
 		{
-			$1.right = $3
+			$1.branches = []*cspTree{$3}
+			$1.count = 1
 			$$ = $1
 		}
 	| Event cspPrefix '(' Expr ')'
 		{
-			$1.right = $4
+			$1.branches = []*cspTree{$4}
+			$1.count = 1
 			$$ = $1
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
 		{
 			if *useFormalCommunication {
-				inputRoot := &cspTree{tok: cspChoice}
-				currentRoot := inputRoot
-				for i, v := range channelAlphas[$1] {
-					inputIdent := $1 + "." + v
-					inputProcess := substituteInputVars($1, $3, $5)
-					inputBranch := &cspTree {
-						tok: cspEvent, ident: inputIdent, right: inputProcess}
-					if i != len(channelAlphas) - 1 {
-						currentRoot.left = inputBranch
-						if i != len(channelAlphas) - 2 {
-							currentRoot.right = &cspTree{tok:cspChoice}
-							currentRoot = currentRoot.right
-						}
-					} else {
-						currentRoot.right = inputBranch
-					}
-				}
-				$$ = inputRoot
+//				inputRoot := &cspTree{tok: cspChoice}
+//				currentRoot := inputRoot
+//				for i, v := range channelAlphas[$1] {
+//					inputIdent := $1 + "." + v
+//					inputProcess := substituteInputVars($1, $3, $5)
+//					inputBranch := &cspTree {
+//						tok: cspEvent, ident: inputIdent,
+//						branches: []*cspTree{inputProcess}, count: 1}
+//					if i != len(channelAlphas) - 1 {
+//						currentRoot.left = inputBranch
+//						if i != len(channelAlphas) - 2 {
+//							currentRoot.right = &cspTree{tok:cspChoice}
+//							currentRoot = currentRoot.right
+//						}
+//					} else {
+//						currentRoot.right = inputBranch
+//					}
+//				}
+//				$$ = inputRoot
 			} else {
 				if _, found := channels[$1]; !found {
 					channels[$1] = make(chan string)
 				}
-				$$ = &cspTree{tok: '?', ident: $1+"."+$3, right: $5}
+				$$ = &cspTree{tok: '?', ident: $1+"."+$3,
+							  branches: []*cspTree{$5}, count: 1}
 			}
 		}
 
@@ -275,19 +283,12 @@ func substituteInputVars(oldI string, newI string, root *cspTree) *cspTree {
 		}
 	}
 
-	var (
-		left  *cspTree
-		right *cspTree
-	)
-	if root.left != nil {
-		left = substituteInputVars(oldI, newI, root.left)
-	}
-	if root.right != nil {
-		right = substituteInputVars(oldI, newI, root.right)
+	branchCopy := make([]*cspTree, root.count)
+	for i := 0; i < root.count; i++ {
+		branchCopy[i] = substituteInputVars(oldI, newI, root.branches[i])
 	}
 
 	nodeCopy := *root
-	nodeCopy.left = left
-	nodeCopy.right = right
+	nodeCopy.branches = branchCopy
 	return &nodeCopy
 }

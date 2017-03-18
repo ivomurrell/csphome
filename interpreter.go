@@ -22,6 +22,7 @@ type cspChannel struct {
 	needToBlock   bool
 	traceCount    int
 	c             chan bool
+	isOpen        bool
 }
 
 func init() {
@@ -62,7 +63,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else if rootNode != nil {
-		dummy := cspChannel{nil, true, 0, make(chan bool)}
+		dummy := cspChannel{nil, true, 0, make(chan bool), true}
 		rootMap := make(cspValueMappings)
 		go interpretTree(rootNode, &dummy, rootMap)
 
@@ -84,8 +85,9 @@ func main() {
 func printTree(node *cspTree) {
 	if node != nil {
 		log.Printf("%p, %v", node, *node)
-		printTree(node.left)
-		printTree(node.right)
+		for i := 0; i < node.count; i++ {
+			printTree(node.branches[i])
+		}
 	}
 }
 
@@ -114,30 +116,22 @@ func interpretTree(
 			blockedEvents = getConjunctEvents(node)
 		}
 
-		left := &cspChannel{
-			blockedEvents, false, parent.traceCount, make(chan bool)}
-		right := &cspChannel{
-			blockedEvents, false, parent.traceCount, make(chan bool)}
+		localChans := make([]cspChannel, node.count)
+		for i := 0; i < node.count; i++ {
+			localChans[i] = cspChannel{
+				blockedEvents, false, parent.traceCount, make(chan bool), true}
+			newMap := make(cspValueMappings)
+			for k, v := range mappings {
+				newMap[k] = v
+			}
 
-		leftMap := make(cspValueMappings)
-		rightMap := make(cspValueMappings)
-		for k, v := range mappings {
-			leftMap[k] = v
-		}
-		for k, v := range mappings {
-			rightMap[k] = v
+			go interpretTree(node.branches[i], &localChans[i], newMap)
 		}
 
-		go interpretTree(node.left, left, leftMap)
-		go interpretTree(node.right, right, rightMap)
-
-		parallelMonitor(left, right, parent)
+		parallelMonitor(localChans, parent)
 	case cspOr:
-		if rand.Intn(2) == 1 {
-			interpretTree(node.right, parent, mappings)
-		} else {
-			interpretTree(node.left, parent, mappings)
-		}
+		i := rand.Intn(node.count)
+		interpretTree(node.branches[i], parent, mappings)
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
 			interpretTree(branch, parent, mappings)
@@ -180,7 +174,7 @@ func interpretTree(
 				}
 			}
 
-			if node.right == nil {
+			if node.branches[0] == nil {
 				log.Printf("%s: Process ran out of events.", node.process)
 
 				if parent != nil {
@@ -192,7 +186,7 @@ func interpretTree(
 			}
 
 			consumeEvent(parent)
-			interpretTree(node.right, parent, mappings)
+			interpretTree(node.branches[0], parent, mappings)
 		}
 	case cspProcessTok:
 		p, ok := processDefinitions[node.ident]
@@ -209,14 +203,14 @@ func interpretTree(
 		channels[args[0]] <- args[1]
 
 		consumeEvent(parent)
-		interpretTree(node.right, parent, mappings)
+		interpretTree(node.branches[0], parent, mappings)
 	case '?':
 		args := strings.Split(node.ident, ".")
 		log.Print("Listening on ", args[0])
 		mappings[args[1]] = <-channels[args[0]]
 
 		consumeEvent(parent)
-		interpretTree(node.right, parent, mappings)
+		interpretTree(node.branches[0], parent, mappings)
 	default:
 		log.Printf("Unrecognised token %v.", node.tok)
 		terminateProcess(parent)
@@ -246,84 +240,87 @@ func terminateProcess(parent *cspChannel) {
 	}
 }
 
-func parallelMonitor(left, right, parent *cspChannel) {
-	var isLeftDone bool
+func parallelMonitor(branches []cspChannel, parent *cspChannel) {
+	stillRunning := len(branches)
 	for {
-		if running := <-left.c; !running {
-			isLeftDone = true
+		for _, branch := range branches {
+			if !branch.isOpen {
+				continue
+			}
+			if running := <-branch.c; !running {
+				stillRunning--
+				branch.isOpen = false
+			}
+		}
+
+		if stillRunning > 0 {
+			parent.c <- true
+			<-parent.c
+		} else {
+			parent.c <- false
 			break
 		}
-		if running := <-right.c; !running {
-			isLeftDone = false
-			break
+
+		for _, branch := range branches {
+			if branch.isOpen {
+				branch.c <- true
+			}
 		}
-
-		parent.c <- true
-		<-parent.c
-
-		left.c <- true
-		right.c <- true
 	}
 
-	var ch *cspChannel
-	running := true
-	if isLeftDone {
-		ch = right
-		running = <-ch.c
-	} else {
-		ch = left
-	}
-	parent.c <- running
-
-	for running {
-		<-parent.c
-
-		ch.c <- true
-		running = <-ch.c
-
-		parent.c <- running
-	}
-
-	if left.traceCount >= parent.traceCount {
-		parent.traceCount = left.traceCount + 1
-	}
-	if right.traceCount >= parent.traceCount {
-		parent.traceCount = right.traceCount + 1
+	for _, branch := range branches {
+		if branch.traceCount >= parent.traceCount {
+			parent.traceCount = branch.traceCount + 1
+		}
 	}
 }
 
-func getConjunctEvents(root *cspTree) (conjunct []string) {
-	lEvents := gatherEvents(root.left)
-	rEvents := gatherEvents(root.right)
-	sort.Strings(lEvents)
-	sort.Strings(rEvents)
+func getConjunctEvents(root *cspTree) []string {
+	events := make([]cspEventList, 0, root.count)
+	for i := 0; i < root.count; i++ {
+		gatheredEvents := gatherEvents(root.branches[i])
+		sort.Strings(gatheredEvents)
+		events = append(events, gatheredEvents)
+	}
 
-	i := 0
-OuterConjuctLoop:
-	for _, lEvent := range lEvents {
-		for {
-			if i >= len(rEvents) {
-				break OuterConjuctLoop
+	var conjunct cspEventList
+	for ei, e := range events {
+		for _, event := range e {
+			ci := sort.SearchStrings(conjunct, event)
+			if ci < len(conjunct) && conjunct[ci] == event {
+				continue
 			}
-			rEvent := rEvents[i]
-			if lEvent < rEvent {
-				continue OuterConjuctLoop
-			} else {
-				if lEvent == rEvent {
-					conjunct = append(conjunct, lEvent)
+
+			isExclusive := true
+			for oi, other := range events {
+				if oi == ei {
+					continue
 				}
-				i++
+				i := sort.SearchStrings(other, event)
+				if i < len(other) || other[i] == event {
+					isExclusive = false
+					break
+				}
+			}
+
+			if !isExclusive {
+				if ci >= len(conjunct) {
+					conjunct = append(conjunct, event)
+				} else {
+					conjunct = append(conjunct[:ci],
+						append(cspEventList{event}, conjunct[ci:]...)...)
+				}
 			}
 		}
 	}
 
-	return
+	return conjunct
 }
 
 func gatherEvents(root *cspTree) []string {
 	switch root.tok {
 	case cspEvent:
-		events := gatherEvents(root.right)
+		events := gatherEvents(root.branches[0])
 		for _, event := range events {
 			if root.ident == event {
 				return events
@@ -333,38 +330,24 @@ func gatherEvents(root *cspTree) []string {
 	case cspProcessTok:
 		return alphabets[root.ident]
 	case cspChoice, cspGenChoice, cspOr, cspParallel:
-		lEvents := gatherEvents(root.left)
-		rEvents := gatherEvents(root.right)
-		sort.Strings(lEvents)
-		sort.Strings(rEvents)
-
 		var events []string
-		ri := 0
-	OuterMergeLoop:
-		for li, lEvent := range lEvents {
-			for {
-				if len(rEvents) <= ri {
-					events = append(events, lEvents[li:]...)
-					break OuterMergeLoop
-				}
-				if lEvent == rEvents[ri] {
-					events = append(events, lEvent)
-					ri++
-					continue OuterMergeLoop
-				} else if lEvent < rEvents[ri] {
-					events = append(events, lEvent)
-					continue OuterMergeLoop
-				} else {
-					events = append(events, rEvents[ri])
-					ri++
-				}
+		for i := 0; i < root.count; i++ {
+			events = append(events, gatherEvents(root.branches[i])...)
+		}
+		sort.Strings(events)
+		if events == nil {
+			return nil
+		}
+
+		uniqueEvents := make([]string, 1, len(events))
+		uniqueEvents[0] = events[0]
+		for i, event := range events[1:] {
+			if event != events[i] {
+				uniqueEvents = append(uniqueEvents, event)
 			}
 		}
-		if len(rEvents) > ri {
-			events = append(events, rEvents[ri:]...)
-		}
 
-		return events
+		return uniqueEvents
 	}
 
 	return nil
@@ -381,13 +364,15 @@ func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
 	case cspProcessTok:
 		return choiceTraverse(target, processDefinitions[root.ident])
 	case cspChoice:
-		result, leftEvents := choiceTraverse(target, root.left)
-		if result != nil {
-			return result, leftEvents
+		var events []string
+		for i := 0; i < root.count; i++ {
+			result, newEvents := choiceTraverse(target, root.branches[i])
+			events = append(events, newEvents...)
+			if result != nil {
+				return result, events
+			}
 		}
-
-		result, rightEvents := choiceTraverse(target, root.right)
-		return result, append(leftEvents, rightEvents...)
+		return nil, events
 	case cspGenChoice:
 		results, events := genChoiceTraverse(target, root)
 		if len(results) > 1 {
@@ -418,11 +403,18 @@ func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
 		branch, events := choiceTraverse(target, root)
 		return []*cspTree{branch}, events
 	case cspGenChoice:
-		leftBranches, leftEvents := genChoiceTraverse(target, root.left)
-		rightBranches, rightEvents := genChoiceTraverse(target, root.right)
+		var (
+			branches []*cspTree
+			events   []string
+		)
+		for i := 0; i < root.count; i++ {
+			newBranches, newEvents :=
+				genChoiceTraverse(target, root.branches[i])
+			branches = append(branches, newBranches...)
+			events = append(events, newEvents...)
+		}
 
-		return append(leftBranches, rightBranches...),
-			append(leftEvents, rightEvents...)
+		return branches, events
 	default:
 		fmt := "Mixing a general choice operator with " +
 			"a %v is not supported"
@@ -455,16 +447,13 @@ func errorPassProcess(name string, root *cspTree) (err error) {
 		return
 	}
 
-	if root.left != nil {
-		err = errorPassProcess(name, root.left)
+	for i := 0; i < root.count; i++ {
+		err = errorPassProcess(name, root.branches[i])
 		if err != nil {
 			return
 		}
 	}
 
-	if root.right != nil {
-		err = errorPassProcess(name, root.right)
-	}
 	return
 }
 
@@ -505,24 +494,31 @@ func checkAlphabet(root *cspTree) error {
 
 func checkDeterministicChoice(root *cspTree) error {
 	if root.tok == cspChoice {
-		var left, right string
-		switch root.left.tok {
-		case cspEvent:
-			left = root.left.ident
-		case cspProcessTok:
-			left = processDefinitions[root.left.ident].ident
-		}
-		switch root.right.tok {
-		case cspEvent:
-			right = root.right.ident
-		case cspProcessTok:
-			right = processDefinitions[root.right.ident].ident
-		}
+		for i := 0; i < root.count; i++ {
+			var source string
+			sourceNode := root.branches[i]
+			switch sourceNode.tok {
+			case cspEvent:
+				source = sourceNode.ident
+			case cspProcessTok:
+				source = processDefinitions[sourceNode.ident].ident
+			}
+			for j := 0; j < root.count; j++ {
+				var target string
+				targetNode := root.branches[j]
+				switch targetNode.tok {
+				case cspEvent:
+					target = targetNode.ident
+				case cspProcessTok:
+					target = processDefinitions[targetNode.ident].ident
+				}
 
-		if left == right {
-			errFmt := "Syntax error: Cannot have a choice " +
-				"between identical events (%s + %s)."
-			return fmt.Errorf(errFmt, left, right)
+				if source == target {
+					errFmt := "Syntax error: Cannot have a choice " +
+						"between identical events (%s + %s)."
+					return fmt.Errorf(errFmt, source, target)
+				}
+			}
 		}
 	}
 
