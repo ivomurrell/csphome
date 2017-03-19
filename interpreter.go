@@ -116,16 +116,16 @@ func interpretTree(
 			blockedEvents = getConjunctEvents(node)
 		}
 
-		localChans := make([]cspChannel, node.count)
+		localChans := make([]*cspChannel, node.count)
 		for i := 0; i < node.count; i++ {
-			localChans[i] = cspChannel{
+			localChans[i] = &cspChannel{
 				blockedEvents, false, parent.traceCount, make(chan bool), true}
 			newMap := make(cspValueMappings)
 			for k, v := range mappings {
 				newMap[k] = v
 			}
 
-			go interpretTree(node.branches[i], &localChans[i], newMap)
+			go interpretTree(node.branches[i], localChans[i], newMap)
 		}
 
 		parallelMonitor(localChans, parent)
@@ -240,7 +240,7 @@ func terminateProcess(parent *cspChannel) {
 	}
 }
 
-func parallelMonitor(branches []cspChannel, parent *cspChannel) {
+func parallelMonitor(branches []*cspChannel, parent *cspChannel) {
 	stillRunning := len(branches)
 	for {
 		for _, branch := range branches {
