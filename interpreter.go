@@ -85,7 +85,7 @@ func main() {
 func printTree(node *cspTree) {
 	if node != nil {
 		log.Printf("%p, %v", node, *node)
-		for i := 0; i < node.count; i++ {
+		for i := 0; i < len(node.branches); i++ {
 			printTree(node.branches[i])
 		}
 	}
@@ -116,8 +116,8 @@ func interpretTree(
 			blockedEvents = getConjunctEvents(node)
 		}
 
-		localChans := make([]*cspChannel, node.count)
-		for i := 0; i < node.count; i++ {
+		localChans := make([]*cspChannel, len(node.branches))
+		for i := 0; i < len(node.branches); i++ {
 			localChans[i] = &cspChannel{
 				blockedEvents, false, parent.traceCount, make(chan bool), true}
 			newMap := make(cspValueMappings)
@@ -130,7 +130,7 @@ func interpretTree(
 
 		parallelMonitor(localChans, parent)
 	case cspOr:
-		i := rand.Intn(node.count)
+		i := rand.Intn(len(node.branches))
 		interpretTree(node.branches[i], parent, mappings)
 	case cspChoice:
 		if branch, events := choiceTraverse(trace, node); branch != nil {
@@ -276,8 +276,8 @@ func parallelMonitor(branches []*cspChannel, parent *cspChannel) {
 }
 
 func getConjunctEvents(root *cspTree) []string {
-	events := make([]cspEventList, 0, root.count)
-	for i := 0; i < root.count; i++ {
+	events := make([]cspEventList, 0, len(root.branches))
+	for i := 0; i < len(root.branches); i++ {
 		gatheredEvents := gatherEvents(root.branches[i])
 		sort.Strings(gatheredEvents)
 		events = append(events, gatheredEvents)
@@ -331,7 +331,7 @@ func gatherEvents(root *cspTree) []string {
 		return alphabets[root.ident]
 	case cspChoice, cspGenChoice, cspOr, cspParallel:
 		var events []string
-		for i := 0; i < root.count; i++ {
+		for i := 0; i < len(root.branches); i++ {
 			events = append(events, gatherEvents(root.branches[i])...)
 		}
 		sort.Strings(events)
@@ -365,7 +365,7 @@ func choiceTraverse(target string, root *cspTree) (*cspTree, []string) {
 		return choiceTraverse(target, processDefinitions[root.ident])
 	case cspChoice:
 		var events []string
-		for i := 0; i < root.count; i++ {
+		for i := 0; i < len(root.branches); i++ {
 			result, newEvents := choiceTraverse(target, root.branches[i])
 			events = append(events, newEvents...)
 			if result != nil {
@@ -407,7 +407,7 @@ func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
 			branches []*cspTree
 			events   []string
 		)
-		for i := 0; i < root.count; i++ {
+		for i := 0; i < len(root.branches); i++ {
 			newBranches, newEvents :=
 				genChoiceTraverse(target, root.branches[i])
 			branches = append(branches, newBranches...)
@@ -447,7 +447,7 @@ func errorPassProcess(name string, root *cspTree) (err error) {
 		return
 	}
 
-	for i := 0; i < root.count; i++ {
+	for i := 0; i < len(root.branches); i++ {
 		err = errorPassProcess(name, root.branches[i])
 		if err != nil {
 			return
@@ -494,7 +494,7 @@ func checkAlphabet(root *cspTree) error {
 
 func checkDeterministicChoice(root *cspTree) error {
 	if root.tok == cspChoice {
-		for i := 0; i < root.count; i++ {
+		for i := 0; i < len(root.branches); i++ {
 			var source string
 			sourceNode := root.branches[i]
 			switch sourceNode.tok {
@@ -503,7 +503,7 @@ func checkDeterministicChoice(root *cspTree) error {
 			case cspProcessTok:
 				source = processDefinitions[sourceNode.ident].ident
 			}
-			for j := 0; j < root.count; j++ {
+			for j := 0; j < len(root.branches); j++ {
 				if i == j {
 					continue
 				}

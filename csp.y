@@ -15,7 +15,6 @@ type cspTree struct {
 	ident string
 	process string
 	branches []*cspTree
-	count int
 }
 
 type cspEventList []string
@@ -75,13 +74,11 @@ Process:
 	| Event cspPrefix Process
 		{
 			$1.branches = []*cspTree{$3}
-			$1.count = 1
 			$$ = $1
 		}
 	| Event cspPrefix '(' Expr ')'
 		{
 			$1.branches = []*cspTree{$4}
-			$1.count = 1
 			$$ = $1
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
@@ -111,7 +108,7 @@ Process:
 					channels[$1] = make(chan string)
 				}
 				$$ = &cspTree{tok: '?', ident: $1+"."+$3,
-							  branches: []*cspTree{$5}, count: 1}
+							  branches: []*cspTree{$5}}
 			}
 		}
 
@@ -262,15 +259,13 @@ func gatherBinaryBranches(tok int, left, right *cspTree) (out *cspTree) {
 	if (left.tok == tok) {
 		out = left
 	} else {
-		out = &cspTree{tok: tok, branches: []*cspTree{left}, count: 1}
+		out = &cspTree{tok: tok, branches: []*cspTree{left}}
 	}
 
 	if (right.tok == tok) {
 		out.branches = append(out.branches, right.branches...)
-		out.count += right.count
 	} else {
 		out.branches = append(out.branches, right)
-		out.count++
 	}
 
 	return
@@ -285,8 +280,8 @@ func substituteInputVars(oldI string, newI string, root *cspTree) *cspTree {
 		}
 	}
 
-	branchCopy := make([]*cspTree, root.count)
-	for i := 0; i < root.count; i++ {
+	branchCopy := make([]*cspTree, len(root.branches))
+	for i := 0; i < len(root.branches); i++ {
 		branchCopy[i] = substituteInputVars(oldI, newI, root.branches[i])
 	}
 
