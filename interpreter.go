@@ -283,7 +283,7 @@ func getConjunctEvents(root *cspTree) []string {
 		events = append(events, gatheredEvents)
 	}
 
-	var conjunct cspEventList
+	conjunct := make(cspEventList, 0)
 	for ei, e := range events {
 		for _, event := range e {
 			ci := sort.SearchStrings(conjunct, event)
@@ -297,7 +297,7 @@ func getConjunctEvents(root *cspTree) []string {
 					continue
 				}
 				i := sort.SearchStrings(other, event)
-				if i < len(other) || other[i] == event {
+				if i < len(other) && other[i] == event {
 					isExclusive = false
 					break
 				}
