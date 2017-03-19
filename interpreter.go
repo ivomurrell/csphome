@@ -504,6 +504,10 @@ func checkDeterministicChoice(root *cspTree) error {
 				source = processDefinitions[sourceNode.ident].ident
 			}
 			for j := 0; j < root.count; j++ {
+				if i == j {
+					continue
+				}
+
 				var target string
 				targetNode := root.branches[j]
 				switch targetNode.tok {
