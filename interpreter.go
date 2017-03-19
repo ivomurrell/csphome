@@ -174,7 +174,7 @@ func interpretTree(
 				}
 			}
 
-			if node.branches[0] == nil {
+			if node.branches == nil {
 				log.Printf("%s: Process ran out of events.", node.process)
 
 				if parent != nil {
