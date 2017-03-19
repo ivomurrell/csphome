@@ -64,26 +64,10 @@ Start:
 Expr:
 	Process {$$ = $1}
 	| '(' Expr ')' {$$ = $2}
-	| Expr cspChoice Expr
-		{
-			branches := []*cspTree{$1, $3}
-			$$ = &cspTree{tok: cspChoice, branches: branches, count: 2}
-		}
-	| Expr cspGenChoice Expr
-		{
-			branches := []*cspTree{$1, $3}
-			$$ = &cspTree{tok: cspGenChoice, branches: branches, count: 2}
-		}
-	| Expr cspOr Expr
-		{
-			branches := []*cspTree{$1, $3}
-			$$ = &cspTree{tok: cspOr, branches: branches, count: 2}
-		}
-	| Expr cspParallel Expr
-		{
-			branches := []*cspTree{$1, $3}
-			$$ = &cspTree{tok: cspParallel, branches: branches, count: 2}
-		}
+	| Expr cspChoice Expr {$$ = gatherBinaryBranches(cspChoice, $1, $3)}
+	| Expr cspGenChoice Expr {$$ = gatherBinaryBranches(cspGenChoice, $1, $3)}
+	| Expr cspOr Expr {$$ = gatherBinaryBranches(cspOr, $1, $3)}
+	| Expr cspParallel Expr {$$ = gatherBinaryBranches(cspParallel, $1, $3)}
 
 Process:
 	Event
@@ -272,6 +256,24 @@ func (x *cspLex) Error(s string) {
 	} else {
 		log.Printf("Parse error at line %v", lineNo)
 	}
+}
+
+func gatherBinaryBranches(tok int, left, right *cspTree) (out *cspTree) {
+	if (left.tok == tok) {
+		out = left
+	} else {
+		out = &cspTree{tok: tok, branches: []*cspTree{left}, count: 1}
+	}
+
+	if (right.tok == tok) {
+		out.branches = append(out.branches, right.branches...)
+		out.count += right.count
+	} else {
+		out.branches = append(out.branches, right)
+		out.count++
+	}
+
+	return
 }
 
 func substituteInputVars(oldI string, newI string, root *cspTree) *cspTree {
