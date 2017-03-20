@@ -34,7 +34,7 @@ var lineNo int = 1
 
 var eventBuf cspEventList
 
-var useFormalCommunication *bool
+var useFormalCommunication bool = false
 
 %}
 
@@ -83,7 +83,7 @@ Process:
 		}
 	| cspEvent '?' cspEvent cspPrefix Process
 		{
-			if *useFormalCommunication {
+			if useFormalCommunication {
 				inputBranches := make([]*cspTree, len(channelAlphas[$1]))
 				inputRoot := &cspTree{tok: cspChoice}
 				for i, v := range channelAlphas[$1] {
@@ -107,7 +107,7 @@ Event:
 	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
 	| cspEvent '!' cspEvent
 		{
-			if *useFormalCommunication {
+			if useFormalCommunication {
 				outputIdent := $1 + "." + $3
 				$$ = &cspTree{tok: cspEvent, ident: outputIdent}
 			} else {

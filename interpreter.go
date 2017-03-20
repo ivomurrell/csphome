@@ -34,7 +34,7 @@ func main() {
 	flagUsage := "Use static trees generated at compile time to handle " +
 		"channel input. Mirrors the CSP definition more closely whilst " +
 		"using significantly more memory."
-	useFormalCommunication = flag.Bool("formalchannels", false, flagUsage)
+	useFormalCommunication = *flag.Bool("formalchannels", false, flagUsage)
 	flag.Parse()
 
 	if *path == "" {
