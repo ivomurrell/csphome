@@ -53,7 +53,7 @@ func printTree(node *cspTree) {
 	}
 }
 
-func interpretTree(path string) {
+func interpretTree(path string) cspEventList {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("%s: \"%s\"", err, path)
@@ -68,7 +68,7 @@ func interpretTree(path string) {
 	}
 	file.Close()
 	if wasParserError {
-		return
+		return nil
 	}
 
 	err = errorPass()
@@ -88,11 +88,15 @@ func interpretTree(path string) {
 
 		if len(rootTrace) < dummy.traceCount {
 			log.Print("Environment ran out of events.")
+			return nil
 		} else {
-			log.Print("Unexecuted environment events: ",
-				rootTrace[dummy.traceCount-1:])
+			remainingEvents := rootTrace[dummy.traceCount-1:]
+			log.Print("Unexecuted environment events: ", remainingEvents)
+			return remainingEvents
 		}
 	}
+
+	return nil
 }
 
 func traverseTree(
