@@ -84,25 +84,16 @@ Process:
 	| cspEvent '?' cspEvent cspPrefix Process
 		{
 			if *useFormalCommunication {
-//				inputRoot := &cspTree{tok: cspChoice}
-//				currentRoot := inputRoot
-//				for i, v := range channelAlphas[$1] {
-//					inputIdent := $1 + "." + v
-//					inputProcess := substituteInputVars($1, $3, $5)
-//					inputBranch := &cspTree {
-//						tok: cspEvent, ident: inputIdent,
-//						branches: []*cspTree{inputProcess}, count: 1}
-//					if i != len(channelAlphas) - 1 {
-//						currentRoot.left = inputBranch
-//						if i != len(channelAlphas) - 2 {
-//							currentRoot.right = &cspTree{tok:cspChoice}
-//							currentRoot = currentRoot.right
-//						}
-//					} else {
-//						currentRoot.right = inputBranch
-//					}
-//				}
-//				$$ = inputRoot
+				inputBranches := make([]*cspTree, len(channelAlphas[$1]))
+				inputRoot := &cspTree{tok: cspChoice}
+				for i, v := range channelAlphas[$1] {
+					inputIdent := $1 + "." + v
+					inputProcess := substituteInputVars($1, $3, $5)
+					inputBranches[i] = &cspTree {
+						tok: cspEvent, ident: inputIdent,
+						branches: []*cspTree{inputProcess}}
+				}
+				$$ = inputRoot
 			} else {
 				if _, found := channels[$1]; !found {
 					channels[$1] = make(chan string)
