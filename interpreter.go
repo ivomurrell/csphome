@@ -207,14 +207,19 @@ func traverseTree(
 		}
 	case '!':
 		args := strings.Split(trace, ".")
-		log.Print("Outputting on ", args[0])
+		if len(args) != 2 {
+			fmt := "%s: Deadlock: Expected output event but " +
+				"instead found event %s."
+			log.Printf(fmt, node.process, trace)
+			terminateProcess(parent)
+			break
+		}
 		channels[args[0]] <- args[1]
 
 		consumeEvent(parent)
 		traverseTree(node.branches[0], parent, mappings)
 	case '?':
 		args := strings.Split(node.ident, ".")
-		log.Print("Listening on ", args[0])
 		mappings[args[1]] = <-channels[args[0]]
 
 		consumeEvent(parent)
