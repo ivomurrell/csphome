@@ -41,9 +41,22 @@ func main() {
 		log.Fatal("Must specify file to be interpreted using -f flag.")
 	}
 
-	file, err := os.Open(*path)
+	interpretTree(*path)
+}
+
+func printTree(node *cspTree) {
+	if node != nil {
+		log.Printf("%p, %v", node, *node)
+		for i := 0; i < len(node.branches); i++ {
+			printTree(node.branches[i])
+		}
+	}
+}
+
+func interpretTree(path string) {
+	file, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("%s: \"%s\"", err, *path)
+		log.Fatalf("%s: \"%s\"", err, path)
 	}
 	in := bufio.NewScanner(file)
 
@@ -78,15 +91,6 @@ func main() {
 		} else {
 			log.Print("Unexecuted environment events: ",
 				rootTrace[dummy.traceCount-1:])
-		}
-	}
-}
-
-func printTree(node *cspTree) {
-	if node != nil {
-		log.Printf("%p, %v", node, *node)
-		for i := 0; i < len(node.branches); i++ {
-			printTree(node.branches[i])
 		}
 	}
 }
