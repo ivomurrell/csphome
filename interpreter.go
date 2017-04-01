@@ -147,9 +147,9 @@ func traverseTree(
 			consumeEvent(parent)
 			traverseTree(node, parent, mappings)
 		} else {
-			fmt := "%s: Deadlock: environment (%s) " +
+			fmtStr := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
-			log.Printf(fmt, node.process, trace, events)
+			log.Printf(fmtStr, node.process, trace, events)
 			terminateProcess(parent)
 		}
 	case cspGenChoice:
@@ -160,9 +160,9 @@ func traverseTree(
 			consumeEvent(parent)
 			traverseTree(node, parent, mappings)
 		} else {
-			fmt := "%s: Deadlock: environment (%s) " +
+			fmtStr := "%s: Deadlock: environment (%s) " +
 				"matches none of the general choice events %v."
-			log.Printf(fmt, node.process, trace, events)
+			log.Printf(fmtStr, node.process, trace, events)
 			terminateProcess(parent)
 		}
 	case cspEvent:
@@ -174,9 +174,9 @@ func traverseTree(
 				mappedEvent := mappings[node.ident]
 
 				if trace != mappedEvent {
-					fmt := "%s: Deadlock: environment (%s) " +
+					fmtStr := "%s: Deadlock: environment (%s) " +
 						"does not match prefixed event (%s)"
-					log.Printf(fmt, node.process, trace, node.ident)
+					log.Printf(fmtStr, node.process, trace, node.ident)
 					terminateProcess(parent)
 					break
 				}
@@ -208,9 +208,9 @@ func traverseTree(
 	case '!':
 		args := strings.Split(trace, ".")
 		if len(args) != 2 {
-			fmt := "%s: Deadlock: Expected output event but " +
+			fmtStr := "%s: Deadlock: Expected output event but " +
 				"instead found event %s."
-			log.Printf(fmt, node.process, trace)
+			log.Printf(fmtStr, node.process, trace)
 			terminateProcess(parent)
 			break
 		}
@@ -429,9 +429,9 @@ func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
 
 		return branches, events
 	default:
-		fmt := "Mixing a general choice operator with " +
+		fmtStr := "Mixing a general choice operator with " +
 			"a %v is not supported"
-		log.Printf(fmt, root.tok)
+		log.Printf(fmtStr, root.tok)
 		return nil, nil
 	}
 }
