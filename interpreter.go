@@ -270,7 +270,6 @@ func parallelMonitor(branches []*cspChannel, parent *cspChannel) {
 			parent.c <- true
 			<-parent.c
 		} else {
-			parent.c <- false
 			break
 		}
 
@@ -286,6 +285,7 @@ func parallelMonitor(branches []*cspChannel, parent *cspChannel) {
 			parent.traceCount = branch.traceCount + 1
 		}
 	}
+	parent.c <- false
 }
 
 func getConjunctEvents(root *cspTree) []string {
