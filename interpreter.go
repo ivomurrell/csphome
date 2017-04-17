@@ -25,6 +25,8 @@ type cspChannel struct {
 	isOpen        bool
 }
 
+const skipUniqueEvents bool = false
+
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
@@ -118,7 +120,7 @@ func traverseTree(
 	switch node.tok {
 	case cspParallel:
 		var blockedEvents []string
-		if parent.blockedEvents != nil {
+		if parent.blockedEvents != nil || !skipUniqueEvents {
 			blockedEvents = parent.blockedEvents
 		} else {
 			blockedEvents = getConjunctEvents(node)
@@ -232,15 +234,20 @@ func traverseTree(
 
 func consumeEvent(parent *cspChannel) {
 	if parent != nil {
-		event := rootTrace[parent.traceCount]
+		if skipUniqueEvents {
+			event := rootTrace[parent.traceCount]
 
-		for _, blockedEvent := range parent.blockedEvents {
-			if event == blockedEvent {
-				parent.c <- true
-				parent.needToBlock = true
+			for _, blockedEvent := range parent.blockedEvents {
+				if event == blockedEvent {
+					parent.c <- true
+					parent.needToBlock = true
 
-				break
+					break
+				}
 			}
+		} else {
+			parent.c <- true
+			parent.needToBlock = true
 		}
 
 		parent.traceCount++
