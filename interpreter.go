@@ -25,7 +25,7 @@ type cspChannel struct {
 	isOpen        bool
 }
 
-const skipUniqueEvents bool = false
+const skipUniqueEvents bool = true
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
