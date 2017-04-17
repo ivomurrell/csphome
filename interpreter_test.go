@@ -2,6 +2,16 @@ package main
 
 import "testing"
 
+func benchmarkProgram(path string, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		interpretTree(path)
+	}
+}
+
+func BenchmarkParallel(b *testing.B) {
+	benchmarkProgram("parallel.csp", b)
+}
+
 func testAllConsumed(path string, t *testing.T) {
 	remaining := interpretTree(path)
 
