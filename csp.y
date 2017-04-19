@@ -23,11 +23,11 @@ type cspAlphabetMap map[string]cspEventList
 var rootNode *cspTree
 var rootTrace cspEventList
 
-var processDefinitions map[string]*cspTree = make(map[string]*cspTree)
-var alphabets cspAlphabetMap = make(cspAlphabetMap)
+var processDefinitions map[string]*cspTree
+var alphabets cspAlphabetMap
 
-var channels map[string]chan string = make(map[string]chan string)
-var channelAlphas cspAlphabetMap = make(cspAlphabetMap)
+var channels map[string]chan string
+var channelAlphas cspAlphabetMap
 
 var wasParserError bool
 var lineNo int = 1

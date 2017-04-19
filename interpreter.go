@@ -62,6 +62,11 @@ func interpretTree(path string) cspEventList {
 	}
 	in := bufio.NewScanner(file)
 
+	processDefinitions = make(map[string]*cspTree)
+	alphabets = make(cspAlphabetMap)
+	channels = make(map[string]chan string)
+	channelAlphas = make(cspAlphabetMap)
+
 	log.SetOutput(os.Stdout)
 	var lineScan scanner.Scanner
 	for in.Scan() {
