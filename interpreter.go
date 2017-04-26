@@ -19,7 +19,6 @@ type cspValueMappings map[string]string
 
 type cspChannel struct {
 	blockedEvents []string
-	needToBlock   bool
 	traceCount    int
 	c             chan bool
 	isOpen        bool
@@ -83,11 +82,11 @@ func interpretTree(path string) cspEventList {
 	if err != nil {
 		log.Fatal(err)
 	} else if rootNode != nil {
-		dummy := cspChannel{nil, true, 0, make(chan bool), true}
+		dummy := cspChannel{nil, 0, make(chan bool), true}
 		rootMap := make(cspValueMappings)
 		go traverseTree(rootNode, &dummy, rootMap)
 
-		running := true
+		running := <-dummy.c
 		for running {
 			dummy.c <- false
 			running = <-dummy.c
@@ -111,11 +110,6 @@ func traverseTree(
 	parent *cspChannel,
 	mappings cspValueMappings) {
 
-	if parent.needToBlock {
-		<-parent.c
-		parent.needToBlock = false
-	}
-
 	if len(rootTrace) <= parent.traceCount {
 		terminateProcess(parent)
 		return
@@ -134,7 +128,7 @@ func traverseTree(
 		localChans := make([]*cspChannel, len(node.branches))
 		for i := 0; i < len(node.branches); i++ {
 			localChans[i] = &cspChannel{
-				blockedEvents, false, parent.traceCount, make(chan bool), true}
+				blockedEvents, parent.traceCount, make(chan bool), true}
 			newMap := make(cspValueMappings)
 			for k, v := range mappings {
 				newMap[k] = v
@@ -239,20 +233,21 @@ func traverseTree(
 
 func consumeEvent(parent *cspChannel) {
 	if parent != nil {
+		blockOnEvent := !skipUniqueEvents
 		if skipUniqueEvents {
 			event := rootTrace[parent.traceCount]
 
 			for _, blockedEvent := range parent.blockedEvents {
 				if event == blockedEvent {
-					parent.c <- true
-					parent.needToBlock = true
-
+					blockOnEvent = true
 					break
 				}
 			}
-		} else {
+		}
+
+		if blockOnEvent {
 			parent.c <- true
-			parent.needToBlock = true
+			<-parent.c
 		}
 
 		parent.traceCount++
