@@ -12,6 +12,14 @@ func BenchmarkParallel(b *testing.B) {
 	benchmarkProgram("parallel.csp", b)
 }
 
+func BenchmarkPhilosophers(b *testing.B) {
+	benchmarkProgram("philosophers.csp", b)
+}
+
+func BenchmarkClientServer(b *testing.B) {
+	benchmarkProgram("clientserver.csp", b)
+}
+
 func testAllConsumed(path string, t *testing.T) {
 	remaining := interpretTree(path)
 
