@@ -1,0 +1,9 @@
+let Client = query->handle->work->work->work
+let alphadef Client = query handle work
+
+let Server = listen->query->handle->Server
+let alphadef Server = listen query handle
+
+tracedef listen query handle work work work listen
+
+Client||Server
