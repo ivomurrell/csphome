@@ -1,9 +1,15 @@
-let Client = query->handle->work->work->work
-let alphadef Client = query handle work
+let Client1 = (work1->Client1)|(query1->handle1->Client1)
+let alphadef Client1 = query1 handle1 work1
 
-let Server = listen->query->handle->Server
-let alphadef Server = listen query handle
+let Client2 = (work2->Client2)|(query2->handle2->Client2)
+let alphadef Client2 = query2 handle2 work2
 
-tracedef listen query handle work work work listen
+let Client3 = (work3->Client3)|(query3->handle3->Client3)
+let alphadef Client3 = query3 handle3 work3
 
-Client||Server
+let Server = listen->((query1->handle1->Server)|(query2->handle2->Server)|(query3->handle3->Server))
+let alphadef Server = listen query1 query2 query3 handle1 handle2 handle3
+
+tracedef listen query1 handle1 work1 listen work1 work2 query2 work3 handle2 work1 listen
+
+Client1||Client2||Client3||Server
