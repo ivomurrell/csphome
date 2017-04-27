@@ -26,6 +26,8 @@ type cspChannel struct {
 
 const skipUniqueEvents bool = true
 
+var hasDeadlocked bool
+
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
@@ -65,6 +67,7 @@ func interpretTree(path string) cspEventList {
 	alphabets = make(cspAlphabetMap)
 	channels = make(map[string]chan string)
 	channelAlphas = make(cspAlphabetMap)
+	hasDeadlocked = false
 
 	log.SetOutput(os.Stdout)
 	var lineScan scanner.Scanner
@@ -151,6 +154,7 @@ func traverseTree(
 			fmtStr := "%s: Deadlock: environment (%s) " +
 				"matches none of the choice events %v."
 			log.Printf(fmtStr, node.process, trace, events)
+			hasDeadlocked = true
 			terminateProcess(parent)
 		}
 	case cspGenChoice:
@@ -164,6 +168,7 @@ func traverseTree(
 			fmtStr := "%s: Deadlock: environment (%s) " +
 				"matches none of the general choice events %v."
 			log.Printf(fmtStr, node.process, trace, events)
+			hasDeadlocked = true
 			terminateProcess(parent)
 		}
 	case cspEvent:
@@ -178,6 +183,7 @@ func traverseTree(
 					fmtStr := "%s: Deadlock: environment (%s) " +
 						"does not match prefixed event (%s)"
 					log.Printf(fmtStr, node.process, trace, node.ident)
+					hasDeadlocked = true
 					terminateProcess(parent)
 					break
 				}
@@ -212,6 +218,7 @@ func traverseTree(
 			fmtStr := "%s: Deadlock: Expected output event but " +
 				"instead found event %s."
 			log.Printf(fmtStr, node.process, trace)
+			hasDeadlocked = true
 			terminateProcess(parent)
 			break
 		}
