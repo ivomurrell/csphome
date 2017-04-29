@@ -102,6 +102,17 @@ Process:
 							  branches: []*cspTree{$5}}
 			}
 		}
+	| cspEvent '?' cspEvent
+		{
+			if useFormalCommunication {
+				$$ = &cspTree{tok: cspEvent, ident: $1+"."+$3}
+			} else {
+				if _, found := channels[$1]; !found {
+					channels[$1] = make(chan string)
+				}
+				$$ = &cspTree{tok: '?', ident: $1+"."+$3}
+			}
+		}
 
 Event:
 	cspEvent {$$ = &cspTree{tok: cspEvent, ident: $1}}
