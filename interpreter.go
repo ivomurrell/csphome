@@ -467,8 +467,13 @@ func genChoiceTraverse(target string, root *cspTree) ([]*cspTree, []string) {
 }
 
 func errorPass() error {
+	err := checkChannelAlphabets()
+	if err != nil {
+		return err
+	}
+
 	for ident, p := range processDefinitions {
-		err := errorPassProcess(ident, p)
+		err = errorPassProcess(ident, p)
 		if err != nil {
 			return err
 		}
@@ -529,6 +534,28 @@ func checkAlphabet(root *cspTree) error {
 					"channel %s's alphabet."
 				return fmt.Errorf(errFmt, root.process, channel)
 			}
+		}
+	}
+
+	return nil
+}
+
+func checkChannelAlphabets() error {
+TraceLoop:
+	for _, event := range rootTrace {
+		if i := strings.IndexRune(event, '.'); i != -1 {
+			channel := event[:i]
+			cAlpha := channelAlphas[channel]
+			element := event[i+1:]
+
+			for _, cElement := range cAlpha {
+				if element == cElement {
+					continue TraceLoop
+				}
+			}
+			errFmt := "Syntax error: event %s is passed over channel %s, but " +
+				"is not in the channel's alphabet."
+			return fmt.Errorf(errFmt, element, channel)
 		}
 	}
 
