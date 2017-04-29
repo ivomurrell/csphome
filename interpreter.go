@@ -95,11 +95,11 @@ func interpretTree(path string) cspEventList {
 			running = <-dummy.c
 		}
 
-		if len(rootTrace) < dummy.traceCount {
+		if len(rootTrace)-1 < dummy.traceCount {
 			log.Print("Environment ran out of events.")
 			return nil
 		} else {
-			remainingEvents := rootTrace[dummy.traceCount-1:]
+			remainingEvents := rootTrace[dummy.traceCount:]
 			log.Print("Unexecuted environment events: ", remainingEvents)
 			return remainingEvents
 		}
@@ -271,6 +271,8 @@ func finishProcess(name string, parent *cspChannel) {
 	if parent != nil {
 		parent.c <- true
 		<-parent.c
+		parent.traceCount++
+
 		parent.c <- false
 	}
 }
@@ -309,8 +311,8 @@ func parallelMonitor(branches []*cspChannel, parent *cspChannel) {
 	}
 
 	for _, branch := range branches {
-		if branch.traceCount >= parent.traceCount {
-			parent.traceCount = branch.traceCount + 1
+		if branch.traceCount > parent.traceCount {
+			parent.traceCount = branch.traceCount
 		}
 	}
 	parent.c <- false
