@@ -190,13 +190,7 @@ func traverseTree(
 			}
 
 			if node.branches == nil {
-				log.Printf("%s: Process ran out of events.", node.process)
-
-				if parent != nil {
-					parent.c <- true
-					<-parent.c
-					parent.c <- false
-				}
+				finishProcess(node.process, parent)
 				break
 			}
 
@@ -224,11 +218,21 @@ func traverseTree(
 		}
 		channels[args[0]] <- args[1]
 
+		if node.branches == nil {
+			finishProcess(node.process, parent)
+			break
+		}
+
 		consumeEvent(parent)
 		traverseTree(node.branches[0], parent, mappings)
 	case '?':
 		args := strings.Split(node.ident, ".")
 		mappings[args[1]] = <-channels[args[0]]
+
+		if node.branches == nil {
+			finishProcess(node.process, parent)
+			break
+		}
 
 		consumeEvent(parent)
 		traverseTree(node.branches[0], parent, mappings)
@@ -258,6 +262,16 @@ func consumeEvent(parent *cspChannel) {
 		}
 
 		parent.traceCount++
+	}
+}
+
+func finishProcess(name string, parent *cspChannel) {
+	log.Printf("%s: Process ran out of events.", name)
+
+	if parent != nil {
+		parent.c <- true
+		<-parent.c
+		parent.c <- false
 	}
 }
 
